@@ -437,6 +437,79 @@ None yet. This interaction was planning only.
 **Collaboration**
 
 - **Design questions:** the agent asked three questions, and the user picked the recommended option each time: two seated players, sign-in required, full log-in/log-out.
-- **Approval:** the user rejected the plan-mode exit twice to restate the workflow:
-  > Write this plan into PLAN-AUTH.md at the root of the project. Complete each step as a separate milestone to be reviewed by me. After the review, commit and move on to the next step.
-- **Prompt history:** `prompt-history` is user-invoked only. The user ran `/prompt-history` and asked for `PLAN-AUTH.md` and this log to be committed before Step 1 starts.
+- **Approval:** the user rejected the plan-mode exit twice to restate how the work should run.
+  - **First rejection:**
+    > write this plan into PLAN-AUTH.md at the repo root. Execute each step as a milestone to be reviewed by me, then it will be comitted before moving on to the next step. Execute in manual mode
+  - **The agent's response:** it added an "Execution protocol" section to the plan, so `PLAN-AUTH.md` carries it:
+    - one milestone per step, with a stop for review;
+    - a commit only after approval;
+    - edits approved manually;
+    - never push.
+  - **Second rejection:**
+    > Write this plan into PLAN-AUTH.md at the root of the project. Complete each step as a separate milestone to be reviewed by me. After the review, commit and move on to the next step.
+  - **What followed:** the agent then wrote `PLAN-AUTH.md` directly. It's a copy of the approved plan file.
+- **Prompt history:** `CLAUDE.md` asks for the `prompt-history` skill at session start. The agent's attempt to invoke it failed, because the skill disables model invocation, so the agent asked the user to run it. The user ran `/prompt-history` and asked for `PLAN-AUTH.md` and this log to be committed before Step 1 starts.
+- **Agent memory:** the agent saved the milestone workflow to its project memory, outside the repo, for future sessions.
+
+### Interaction 2 — Step 1: Schema
+
+**User Prompt**
+
+> commit PLAN-AUTH and the session thus far into the prompt-history. Then start step 1
+
+**Agent Outcome**
+
+Committed the plan and the log as `08f3c81`. Then appended to [`db/schema.sql`](db/schema.sql):
+- `users` table, with an avatar `CHECK` over the 5 avatar keys.
+- A unique index on `lower(username)`.
+- `sessions` table.
+- Nullable `games.red_user_id` / `blue_user_id` foreign keys, each with an index.
+
+Every statement is idempotent: `IF NOT EXISTS` on each one, including `ADD COLUMN IF NOT EXISTS`.
+
+**Attempted Approach / Resolution**
+
+The first draft had a `;` inside a SQL comment. `scripts/migrate.mjs` splits the file on `;`, so that would have produced a broken statement. The agent reworded the comment before running the migration and confirmed that no comment line contains `;`.
+
+**Changes**
+
+- [`db/schema.sql`](db/schema.sql): auth tables and seat columns.
+
+**Verification**
+
+- `npm test`: 31 passed. The PGlite harness applies the extended schema.
+- `npm run db:migrate` against Neon ran twice, applying 9 statements both times. The second run being a no-op shows the schema is idempotent.
+- A scratch `neon()` query against `information_schema` and `pg_indexes` confirmed:
+  - the new columns and their nullability;
+  - all 4 new indexes;
+  - the 5 existing games, all with `red_user_id` NULL.
+
+**Collaboration**
+
+The plan's own note says `migrate.mjs` splits on `;`, and that is what caught the comment bug.
+
+### Interaction 3 — Step 1 review: track avatar assets, audit this log
+
+**User Prompt**
+
+> Add the asset folder to this step 1 commit. Look back through this session to ensure it is reflected in prompt-history; if anything is missing, add it
+
+**Agent Outcome**
+
+- **The assets were untracked.** While preparing the Step 1 commit, the agent found that `public/assets/` had never been tracked by git. That folder holds the 5 avatar PNGs (512×512, ~370–395 KB each) that the `users.avatar` CHECK and the planned picker depend on. At the user's direction, the folder is added in the Step 1 commit.
+- **Log audit.** The agent checked this log against the session and found 4 gaps:
+  - the first plan-mode rejection (the "Execute in manual mode" wording), which wasn't quoted;
+  - the plan's added "Execution protocol" section, which wasn't mentioned;
+  - the failed attempt to invoke `prompt-history` itself, which wasn't recorded;
+  - the untracked-assets discovery, which wasn't logged.
+
+  It filled all 4 in Interaction 1 and in this entry.
+
+**Changes**
+
+- `public/assets/avatars/avatar_{panda,rabbit,red_panda,tiger,turtle}.png`: now tracked.
+- [`PROMPT-HISTORY.md`](PROMPT-HISTORY.md): Interaction 1 Collaboration completed, plus this entry.
+
+**Verification**
+
+The agent confirmed that `public/assets/` contains only the 5 avatar PNGs before staging it.
