@@ -104,12 +104,14 @@ export async function createSession(userId: string): Promise<string> {
   return token;
 }
 
+// Expiry is compared with the database's now(), not `new Date()`: this runs
+// while rendering, where Cache Components rejects reading the clock.
 export async function findUserBySessionToken(token: string): Promise<User | null> {
   const [row] = await getDb().query<User>(
     `SELECT u.id, u.username, u.avatar
      FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = $1 AND s.expires_at > $2`,
-    [hashToken(token), new Date().toISOString()],
+     WHERE s.token_hash = $1 AND s.expires_at > now()`,
+    [hashToken(token)],
   );
   return row ?? null;
 }

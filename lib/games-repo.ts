@@ -3,6 +3,7 @@ import type { Avatar } from "./avatars";
 import { getDb } from "./db";
 import { cellLabel, isOnBoard } from "./game/board";
 import { applyMove, hasWon, initialBoard, legalMoves, nextPlayer } from "./game/rules";
+import { seatOf } from "./game/seats";
 import type {
   Board,
   CellKey,
@@ -107,13 +108,6 @@ function withPlayers(source: string): string {
           FROM ${source} g
           LEFT JOIN users ru ON ru.id = g.red_user_id
           LEFT JOIN users bu ON bu.id = g.blue_user_id`;
-}
-
-/** The colour `userId` plays in `game`, or null for a spectator. */
-export function seatOf(game: Game, userId: string): Player | null {
-  if (game.red?.id === userId) return "red";
-  if (game.blue?.id === userId) return "blue";
-  return null;
 }
 
 async function selectGame(id: string): Promise<GameRow | undefined> {
@@ -341,6 +335,7 @@ export async function listGamesForUser(userId: string, limit = 20): Promise<Game
   );
   return rows.map((row) => {
     const game = toGame(row);
-    return { game, myColor: game.red?.id === userId ? "red" : "blue" };
+    // The WHERE clause guarantees a seat.
+    return { game, myColor: seatOf(game, userId)! };
   });
 }

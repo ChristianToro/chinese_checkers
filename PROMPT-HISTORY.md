@@ -771,3 +771,89 @@ The agent offered a choice: commit Step 5 on its own, which would fail `tsc`, or
   | Eve GETs moves | 200 (spectator read) |
 
   The dev log had no errors. The script then deleted its game and users; their sessions went with them through `ON DELETE CASCADE`.
+
+### Interaction 9 — Step 7: UI
+
+**User Prompt**
+
+> start step 7
+
+**Agent Outcome**
+
+Steps 5 and 6 were committed together as `00afb3e`. Step 7 builds the UI.
+
+**Landing page and auth form**
+- **[`app/page.tsx`](app/page.tsx):** the title and rules stay in the static shell. `HomePanel` is behind `<Suspense>` and reads the session:
+  - **Signed out:** it renders `AuthForm` and passes through `?next`.
+  - **Signed in:** it shows a welcome with the avatar, `NewGameButton`, and `GameHistory`.
+- **The header** has a `<Suspense>`-wrapped `UserMenu`.
+- **The copy** no longer says "No sign-up needed". The `layout.tsx` metadata changed too.
+- **[`components/AuthForm.tsx`](components/AuthForm.tsx):**
+  - Create account / Log in tabs, each a separate form with its own `useActionState`.
+  - Inline field errors linked with `aria-describedby`, and input preserved through `state.values`.
+  - A 5-tile avatar radio group. The selection ring uses `has-[:checked]`, with a focus outline.
+
+**Shared components**
+- **[`components/Avatar.tsx`](components/Avatar.tsx):** a `next/image` round avatar.
+- **[`components/UserMenu.tsx`](components/UserMenu.tsx):** the avatar, the username, and a `<form action={logout}>`.
+- **[`components/GameHistory.tsx`](components/GameHistory.tsx):** each row shows the opponent's avatar and name (or "Open seat"), your colour, the move count, the date, and a badge: Won, Lost, Your turn, Their turn, or Waiting for opponent.
+
+**Game page**
+- **[`app/games/[id]/page.tsx`](app/games/[id]/page.tsx):** `LoadedGame` checks the session for real and redirects to `/?next=/games/<id>` if it's invalid. It passes `viewer` to `GameClient`. The header gains `UserMenu`.
+- **[`components/GameClient.tsx`](components/GameClient.tsx):**
+  - Removed: the sessionStorage `useSeat` hook, `SEATS`, and the "This tab plays as" fieldset. This ends hot-seat play.
+  - `mySeat = seatOf(game, viewer.id)`. A marble is selectable only if it's `mySeat`'s turn and both seats are filled.
+  - New `handleJoin`.
+  - Restart is shown only to a seated player while the game is active.
+- **[`components/PlayersCard.tsx`](components/PlayersCard.tsx) (new):** both seats with avatars, a "(you)" marker, and a "to move" badge. Depending on the viewer, it shows a "Join as Blue/Red" button, a "send the link" hint, or "You're watching".
+- **[`components/TurnIndicator.tsx`](components/TurnIndicator.tsx):** takes `mySeat` and uses usernames. It shows "Your turn", "Waiting for <name>…", "Waiting for an opponent", "You're watching", or "You win!".
+
+**Library**
+- **`seatOf` moved to [`lib/game/seats.ts`](lib/game/seats.ts).** In `lib/games-repo.ts` it would have pulled the DB driver into the client bundle.
+
+**Attempted Approach / Resolution**
+
+- **`new Date()` during rendering.** The first browser run logged Next errors: "encountered the unstable value `new Date()` while prerendering" on `/` and `/games/[id]`. The source was `findUserBySessionToken`'s `expires_at > $2` parameter, `new Date().toISOString()`. With Cache Components and partial prefetching, reading the clock while rendering is rejected even after `cookies()`.
+  - **Fix:** compare against Postgres `now()`, which also makes the DB clock the single authority for expiry.
+  - Unit tests are unaffected. The expired-session test sets `expires_at` with SQL.
+- **Script issues, not app bugs.** The walkthrough script needed two fixes:
+  - `getByText("Your turn")` also matched the landing page's rules text, because Next 16 keeps the previous route mounted but hidden (`<Activity>`). The match was made exact.
+  - An `isVisible()` check ran before the streamed Suspense content arrived. It now uses `waitFor()`.
+- **Unexplained hydration warning.** The first full run also logged one "attributes didn't match" hydration warning. It didn't recur in the two later clean runs. It's noted here, but no cause was identified.
+
+**Changes**
+
+- Created:
+  - `components/AuthForm.tsx`
+  - `components/Avatar.tsx`
+  - `components/UserMenu.tsx`
+  - `components/GameHistory.tsx`
+  - `components/PlayersCard.tsx`
+  - `lib/game/seats.ts`
+- Modified:
+  - `app/page.tsx`
+  - `app/layout.tsx`
+  - `app/games/[id]/page.tsx`
+  - `components/GameClient.tsx`
+  - `components/TurnIndicator.tsx`
+  - `lib/games-repo.ts` (imports `seatOf`)
+  - `lib/users-repo.ts` (`now()`)
+
+**Verification**
+
+- `npm run typecheck`, `npx eslint .`, and `npm test` (59 passed) are clean.
+- **`next build` passes,** both before and after the `now()` fix. `/` and `/games/[id]` build as partial prerenders (◐), and the Proxy is registered.
+- **Browser walkthrough.** The driver is `playwright-core@1.49.1` in the session scratchpad, running `/usr/bin/google-chrome` against `next dev -p 3107` and Neon. It's not a project dependency. There were 4 separate browser contexts, and the plan's Verification steps passed twice in a row after the fix:
+  - **Signed out:** `/games/doesnotexist` redirects to `/?next=%2Fgames%2Fdoesnotexist`, and the form shows.
+  - **Validation:** bad input shows both field errors and keeps the username.
+  - **Sign-up:** A signs up with the tiger avatar, and the welcome appears. `cc_session` is `httpOnly` and `SameSite=Lax`, and the history is empty.
+  - **A's new game:** A is red "(you)", the blue seat is open, and the screen says "Waiting for an opponent". A has 0 selectable marbles.
+  - **Joining:** B opens the link while signed out and is redirected with `next`. B signs up with the rabbit avatar, returns to the same game URL, and clicks "Join as Blue". A's tab shows B in about 790 ms through polling.
+  - **Turns:** A can select only red marbles, and B can select none on red's turn. Both moves went through, each player's turn following the other.
+  - **Phone width:** no horizontal overflow at 390 px.
+  - **Spectator:** a third account sees "You're watching this game.", with no Join or Restart button and 0 selectable marbles.
+  - **Log out and back in:** logging out removes the cookie. A wrong password shows the generic error. Logging in with the username in upper case works, and the history row reads "vs <B> | You played red · 2 moves · Oct 15 | Your turn".
+  - **Duplicate name:** B's name in upper case is rejected with "That username is taken".
+  - **No console errors** on either clean run.
+- **Screenshots** of the error state, the desktop game, the 390 px game, and the history were reviewed. They're in the scratchpad, not committed.
+- **Cleanup:** a scratch script deleted all walkthrough data (17 `zzui_*` users, their sessions, and 6 games). Neon is left with the 5 original ownerless games and no users or sessions.
