@@ -366,3 +366,19 @@ The user will use the unclaimed `spring-frog` database until 2026-10-17, so they
 **Collaboration**
 
 The `run` fallback needed a scratch driver (`playwright-core` plus a two-tab script), so the agent suggested `/run-skill-generator` to save it as a project skill.
+
+The user approved Milestone 6, committed as `8b9b0cf`.
+
+### Interaction 2 — Expiry reminder in PLAN-NEON.md
+
+**User Prompt**
+
+> Add an alert comment at the top of PLAN-NEON regarding the expiry time as a reminder. I will push in a separate terminal.
+
+**Changes**
+
+- `PLAN-NEON.md`: a GitHub `[!CAUTION]` alert under the title. It gives the unclaimed `spring-frog-99908215` database's expiry, 2026-10-18 20:57:42 UTC, and notes that it's in use until 2026-10-17. It also covers how to claim it, which means replacing the rotated `DATABASE_URL`, and how to re-provision it if it lapses.
+
+**Collaboration**
+
+The user pushes the branch themselves, so the agent committed this but did not push.

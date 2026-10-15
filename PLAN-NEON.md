@@ -1,5 +1,8 @@
 # Plan: Neon (serverless Postgres) storage variant
 
+> [!CAUTION]
+> **The temporary Neon database expires at 2026-10-18 20:57:42 UTC.** Project `spring-frog-99908215` was created on 2026-10-15 with `npx neonctl claim create` and has not been claimed. Neon deletes it, with all its games, at that time. It is in use until 2026-10-17. To keep it, run `npx neonctl claim accept` before it expires. Claiming rotates the password, so then copy the new `DATABASE_URL` from the Neon Console into `.env` and restart `npm run dev`. To let it lapse, create a fresh one with `npx neonctl claim create --file .env`, then run `npm run db:migrate`.
+
 ## Context
 The app as built matches `PLAN.md` and stores games in SQLite via `better-sqlite3`. This plan swaps that storage for **Neon** on a separate **`neon` branch**. That branch runs locally (`npm run dev`) against a real Neon database. `main` keeps the working SQLite app. `PLAN.md` stays frozen as the SQLite design snapshot.
 
