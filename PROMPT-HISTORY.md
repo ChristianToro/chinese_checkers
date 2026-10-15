@@ -299,3 +299,37 @@ Only `--help` was run, and nothing was provisioned.
 - `npm test` (31 tests), `npm run typecheck`, `npm run lint`, and `npm run build` all pass.
 - `grep better-sqlite3 lib app package.json` returns nothing.
 - `git check-ignore -v` confirms `.env`/`.env.local` are ignored and `.env.example` is re-included.
+
+The user approved Milestone 4, committed as `1a2fb33`.
+
+#### Milestone 5 — Provision the temporary Neon database (Step 7)
+
+**User Prompt**
+
+> commit this and move on to step 7. We will leverage the temporary database and I will claim it later on.
+
+**Agent Outcome**
+
+With the user's approval, the agent ran `npx -y neonctl@8.7.1 claim create --file .env`.
+- **Project:** `spring-frog-99908215`, branch `br-patient-queen-b5l98m1z`. It is unclaimed and **expires 2026-10-18T20:57:42Z**.
+- **`.env`:** the CLI wrote `DATABASE_URL` (the pooled endpoint), `DATABASE_URL_UNPOOLED`, and `NEON_BRANCH`.
+- **`.neon`:** a local file holding the project and branch IDs. The CLI also added it to `.gitignore`, and the agent kept that entry under a comment heading.
+
+**Changes**
+
+- `.gitignore`: the CLI's `.neon` entry, now under a comment heading.
+
+**Verification**
+
+- `npm run db:migrate` ran twice and printed `Applied 2 schema statements.` both times. `information_schema` lists `games` and `moves`.
+- **`next dev` against Neon:** repeated PLAN.md's curl flow:
+  - create → GET 200 → a legal move 200
+  - wrong turn 409 → stale `expectedMoveCount` 409
+  - illegal move 400 → bad JSON 400
+  - GET moves (1 entry) → reset 200 (history empty) → unknown id 404
+  - `/games/<id>` page 200
+- **Rows reached Neon:** a `neon()` query counted them. Game `898c4c450a` was left with one move (`games: 1, moves: 1`) so the claim check can find it.
+- **Not yet done:**
+  - the two-tab UI check (`run` skill)
+  - the after-claim reload of `898c4c450a`, which waits on the user
+  - `git switch main && npm test`
