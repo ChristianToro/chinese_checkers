@@ -7,7 +7,7 @@ import type { Board, CellKey, Game, GameStatus, Move, MoveKind, Player } from ".
 /** An error that maps directly onto an HTTP status for the API layer. */
 export class GameError extends Error {
   constructor(
-    public readonly status: 400 | 404 | 409,
+    public readonly status: 400 | 401 | 403 | 404 | 409,
     message: string,
   ) {
     super(message);

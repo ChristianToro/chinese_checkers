@@ -563,3 +563,54 @@ The plan puts all tests in Step 8. The agent wrote the tests for this step's cod
   - an expired session returning null;
   - a token that's stored only as its hash.
 - `npm run typecheck` and `npx eslint lib` are clean.
+
+### Interaction 5 — Step 3: Session glue and proxy
+
+**User Prompt**
+
+> commit step 2 and start step 3
+
+**Agent Outcome**
+
+Step 2 was committed as `9b6cce9`. Step 3 adds:
+
+- **[`lib/session.ts`](lib/session.ts)** (`import "server-only"`):
+  - `SESSION_COOKIE = "cc_session"`.
+  - `startSession(userId)` creates a DB session and sets the cookie. Options: `httpOnly`, `sameSite: "lax"`, `secure` in production, `path: "/"`, and a `maxAge` equal to the 30-day TTL.
+  - `endSession()` deletes the DB row and the cookie.
+  - `getCurrentUser()` is wrapped in React `cache()`.
+  - `requireUser()` throws `GameError(401, "Sign in to play")`.
+- **[`proxy.ts`](proxy.ts):**
+  - Matches `/games/:path*`.
+  - Without a `cc_session` cookie, it returns a 307 to `/?next=<pathname>`.
+  - It's an optimistic check only. The page still validates the session against the DB in Step 7.
+- **`lib/games-repo.ts`:** the `GameError` status union gains `401 | 403`. It's pulled forward from Step 5 because `requireUser` needs it.
+
+**Rationale**
+
+- **Combined helpers.** The plan named separate `setSessionCookie(token)` / `clearSessionCookie()` helpers. The agent combined each with its DB call into `startSession` and `endSession`, so callers can't create a session without its cookie, or clear a cookie and leave the session live.
+- **Inlined cookie name.** `proxy.ts` defines the cookie name itself instead of importing `lib/session.ts`. The Next 16 `proxy.md` says Proxy shouldn't rely on shared modules, and `session.ts` pulls in `server-only` and the DB.
+
+**Changes**
+
+- Created:
+  - `lib/session.ts`
+  - `proxy.ts`
+- Modified:
+  - `lib/games-repo.ts`: `GameError` statuses.
+
+**Verification**
+
+- `npm run typecheck`, `npx eslint lib proxy.ts`, and `npm test` (42 passed) are clean.
+- `next dev -p 3107`, checked with curl:
+
+  | Request | Result |
+  |---|---|
+  | `/games/abc123`, no cookie | `307 → /?next=%2Fgames%2Fabc123` |
+  | `/games/abc123`, any `cc_session` cookie | passes through |
+  | `/` | 200 |
+  | `/api/games/abc123` | not matched by the proxy, so the existing 404 JSON |
+  | `/assets/avatars/avatar_tiger.png` | `200 image/png` |
+
+  The dev log had no errors or warnings.
+- **Not yet exercised:** `startSession`, `endSession`, `getCurrentUser`, and `requireUser` have no callers until Steps 4–6. For now they are checked only by the type checker.
