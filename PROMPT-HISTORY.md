@@ -333,3 +333,36 @@ With the user's approval, the agent ran `npx -y neonctl@8.7.1 claim create --fil
   - the two-tab UI check (`run` skill)
   - the after-claim reload of `898c4c450a`, which waits on the user
   - `git switch main && npm test`
+
+The user approved Milestone 5, committed as `9aad15a`.
+
+#### Milestone 6 — Final verification
+
+**User Prompt**
+
+> commit this and continue with the final verification; the spring-frog db will be leveraged until 2026-10-17, so a recheck is not necessary
+
+**Agent Outcome**
+
+The user will use the unclaimed `spring-frog` database until 2026-10-17, so they **dropped the plan's after-claim reload check**. Every other item in the plan's Verification section passed.
+
+**Verification**
+
+- **UI, two tabs against Neon:**
+  - **Setup:** the `run` skill found no project skill and no `chromium-cli`, so the agent drove `/usr/bin/google-chrome` with `playwright-core` from the session scratchpad. Neither is a project dependency. Each tab had its own browser context: A played Red and B played Blue.
+  - **Opening:** a vitest-based search (scratchpad) with the real rules engine found the opening `4-1→5-5`, `14-4→13-9`, `5-5→5-6`, `14-3→14-4`. After it, red can make a two-hop chain.
+  - **Results:**
+    - **Seat guard:** Blue's tab has 0 selectable marbles on Red's turn.
+    - **Highlights:** selecting `4-1` shows 2 highlights.
+    - **Each move:** adds a history row and switches the turn.
+    - **Polling:** the other tab synced within 0.6–1.3 s every time.
+    - **Chained jump:** `3-1 → 5-5` was logged as `jump ×2`, with the dashed path drawn in both tabs, confirmed by screenshot.
+    - **Restart:** cleared both tabs, the second by polling within 1.3 s.
+    - **New Game:** went to a new id with an empty history.
+    - **Layout and errors:** no horizontal overflow at 390 px, and no console errors in any tab.
+- **Rows reached Neon:** a `neon()` query lists the three games (`898c4c450a` with 1 move, plus the UI run's restarted game and new game, each with 0).
+- **SQLite baseline:** a temporary detached worktree of `main` (`d97b303`) in the scratchpad ran `npm ci && npm test`, and 30 tests passed. The worktree was then removed, so the `feature/neon_db` checkout and its `node_modules` were never touched.
+
+**Collaboration**
+
+The `run` fallback needed a scratch driver (`playwright-core` plus a two-tab script), so the agent suggested `/run-skill-generator` to save it as a project skill.
