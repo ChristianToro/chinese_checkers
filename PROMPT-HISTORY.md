@@ -242,3 +242,28 @@ The user approved Milestone 1, committed as `935ae73`. They chose to **combine S
   - **Concurrent writes:** two identical opening moves fired with `Promise.allSettled` gave one `ok` and one `409 The board has changed…`, leaving exactly one history row.
   - **Move results:** `path` comes back as an array, the turn passes to blue, and `updatedAt` advances.
   - **Reset:** it clears the history. Resetting or getting an unknown id gives 404 / `null`.
+
+The user approved Milestone 2, committed as `1919f16`.
+
+#### Milestone 3 — PGlite repository tests (Step 5)
+
+**Changes**
+
+- [`lib/games-repo.test.ts`](lib/games-repo.test.ts):
+  - `beforeAll` creates an in-memory `PGlite`, runs `db/schema.sql`, and calls `setDb` to make PGlite the database.
+  - `beforeEach` runs `TRUNCATE games CASCADE`.
+  - All 9 existing cases are now async, through an `expectGameError(promise, status)` helper built on `await expect(…).rejects`.
+  - The win test seeds its board with `UPDATE … SET board = $1::jsonb`.
+  - New: "lets only one of two concurrent identical moves through".
+- `vitest.config.mts`: deleted. Its only setting was `DB_PATH`, and an empty config adds nothing.
+- `package.json`: adds the dev dependency `@electric-sql/pglite@^0.5.10`.
+
+**Rationale**
+
+The concurrency case uses `Promise.allSettled`, not the plan's `Promise.all`, because `Promise.all` would reject on the 409 before the other result could be checked. Both calls read `move_count = 0` before either one writes, so the second write reaches the guarded `UPDATE` and matches 0 rows.
+
+**Verification**
+
+- `npm test`: 31 tests pass, 21 rules and 10 repository.
+- `npm run typecheck`, `npm run lint`, and `npm run build` are all clean. `/games/[id]` is still a Partial Prerender.
+- **Guard check:** the agent temporarily replaced `move_count = $2` in the guarded `UPDATE` with a condition that always holds. Only the concurrency test failed. The file was then restored from git.
