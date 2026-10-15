@@ -614,3 +614,48 @@ Step 2 was committed as `9b6cce9`. Step 3 adds:
 
   The dev log had no errors or warnings.
 - **Not yet exercised:** `startSession`, `endSession`, `getCurrentUser`, and `requireUser` have no callers until Steps 4–6. For now they are checked only by the type checker.
+
+### Interaction 6 — Step 4: Auth Server Actions
+
+**User Prompt**
+
+> commit step 3 and start step 4
+
+**Agent Outcome**
+
+Step 3 was committed as `65b8833`. Step 4 adds:
+
+- **[`app/actions/auth.ts`](app/actions/auth.ts)** (`"use server"`):
+  - `signup`, `login`, and `logout`. The first two have the `useActionState` signature `(prev, formData) => AuthFormState`.
+  - `AuthFormState` carries `errors` (per field), a `message` (login failure), and `values` (the username and avatar echoed back), so the form keeps its input after a failed submit.
+  - On success, an action calls `startSession`, then `redirect(safeNext(next))`. `redirect` is called outside any `try`, per `redirect.md`.
+  - Login always returns the same message, "Wrong username or password".
+- **[`lib/safe-next.ts`](lib/safe-next.ts):** `safeNext()` allows only same-site paths. It rejects `//host` and `/\host`, which browsers treat as protocol-relative, as well as absolute URLs and non-strings.
+- **[`vitest.config.mts`](vitest.config.mts):** `resolve: { tsconfigPaths: true }`, a native Vite 8 option, so tests can import app code through the `@/` alias.
+
+**Rationale**
+
+- **Why `safeNext` is its own module.** A `"use server"` file may only export async functions, so the helper can't live in `auth.ts`. A separate module also makes it unit-testable.
+- **Config file extension.** The config is `.mts` because the `.ts` name triggered Vite's "ESM syntax in a file loaded as CommonJS" warning. The package has no `"type": "module"`.
+
+**Changes**
+
+- Created:
+  - `app/actions/auth.ts`
+  - `app/actions/auth.test.ts`
+  - `lib/safe-next.ts`
+  - `lib/safe-next.test.ts`
+  - `vitest.config.mts`
+
+**Verification**
+
+- `npm test`: 50 passed across 6 files.
+- **`auth.test.ts`** runs the real actions against PGlite. Only `@/lib/session` and `next/navigation` are mocked: `redirect` throws a sentinel, and the test checks its target. It covers:
+  - signup → session → redirect to `next`;
+  - an off-site `next` → `/`;
+  - field errors echoed back with no session started;
+  - a taken username;
+  - login with a wrong password, an unknown user, and success;
+  - logout.
+- `npm run typecheck` and `npx eslint app lib vitest.config.mts` are clean.
+- **Not yet verified:** the real cookie write (`startSession` through `cookies()`) needs a browser or a form POST. That comes with the Step 7 UI walkthrough.
