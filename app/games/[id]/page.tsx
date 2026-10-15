@@ -30,9 +30,10 @@ export default function GamePage({ params }: PageProps<"/games/[id]">) {
 }
 
 async function LoadedGame({ id }: { id: string }) {
-  // better-sqlite3 is synchronous; opt out of prerendering before querying.
+  // Game state is per-request data that changes between requests; render at
+  // request time rather than letting the query be prerendered.
   await connection();
-  const game = getGame(id);
+  const game = await getGame(id);
   if (!game) notFound();
-  return <GameClient key={id} initialGame={game} initialMoves={listMoves(id)} />;
+  return <GameClient key={id} initialGame={game} initialMoves={await listMoves(id)} />;
 }

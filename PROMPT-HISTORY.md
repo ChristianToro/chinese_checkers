@@ -214,3 +214,31 @@ The script uses `--env-file-if-exists=.env` instead of the plan's `--env-file=.e
 
 - No Neon database exists yet; that is Step 7. The agent ran the same split-and-run logic against a throwaway PGlite in the session scratchpad. Two runs both succeeded, which shows the schema can safely be re-run. Both tables were created, and the `current_player` CHECK rejected `'green'`.
 - `npm run db:migrate` with no `.env` exits 1 and prints the `.env.example` hint.
+
+The user approved Milestone 1, committed as `935ae73`. They chose to **combine Steps 2–4 into one milestone**, so no commit is left in a state that doesn't compile.
+
+#### Milestone 2 — Async query seam, repository, and callers (Steps 2–4)
+
+**Changes**
+
+- [`lib/db.ts`](lib/db.ts): replaces the better-sqlite3 singleton.
+  - The `Db` interface has one method, `query<T>(text, params)`.
+  - `getDb()` lazily wraps `neon(DATABASE_URL)` and throws a hint pointing at `.env.example` if it's unset.
+  - `setDb()` lets the tests inject a database.
+- [`lib/games-repo.ts`](lib/games-repo.ts): every function is now async.
+  - `toGame`/`toMove` normalize JSONB (string or object) and TIMESTAMPTZ (Date or string, turned into an ISO string).
+  - `createGame` is one `INSERT … RETURNING *`.
+  - `resetGame` is one `WITH del AS (DELETE …) UPDATE … RETURNING *`. Zero rows means 404.
+  - `submitMove` keeps the JS validation order, then writes with the plan's guarded `UPDATE … WHERE move_count = $2 AND status = 'active'` and a CTE `INSERT` into `moves`. Zero rows means a 409 with the existing stale-board message, now shared as `STALE_BOARD`.
+- `app/api/games/**/route.ts` (4 files): each one now awaits its repo call.
+- `app/games/[id]/page.tsx`: awaits `getGame`/`listMoves`. The `connection()` comment now says the call is there because game state is per-request data that changes over time, as the bundled `08-caching.md` describes, not because SQLite is synchronous.
+
+**Verification**
+
+- `npm run typecheck`: the app code is clean. The only errors are in `lib/games-repo.test.ts`, which still uses the synchronous SQLite API; Step 5 rewrites it. `npm run lint` is clean. `grep better-sqlite3 lib app` finds nothing.
+- `npm run build` hasn't been run yet. It also typechecks the stale test file, so it waits for Step 5.
+- A throwaway Vitest smoke test in the session scratchpad ran the real repo against PGlite. It is not part of the repo.
+  - **Create:** ISO timestamps with milliseconds.
+  - **Concurrent writes:** two identical opening moves fired with `Promise.allSettled` gave one `ok` and one `409 The board has changed…`, leaving exactly one history row.
+  - **Move results:** `path` comes back as an array, the turn passes to blue, and `updatedAt` advances.
+  - **Reset:** it clears the history. Resetting or getting an unknown id gives 404 / `null`.

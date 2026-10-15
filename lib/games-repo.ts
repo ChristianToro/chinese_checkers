@@ -14,15 +14,17 @@ export class GameError extends Error {
   }
 }
 
+// Drivers differ in how they hand back JSONB (object or string) and
+// TIMESTAMPTZ (Date or string), so rows are normalized on the way out.
 interface GameRow {
   id: string;
-  board: string;
+  board: Board | string;
   current_player: Player;
   status: GameStatus;
   winner: Player | null;
   move_count: number;
-  created_at: string;
-  updated_at: string;
+  created_at: Date | string;
+  updated_at: Date | string;
 }
 
 interface MoveRow {
@@ -30,21 +32,29 @@ interface MoveRow {
   player: Player;
   from_cell: CellKey;
   to_cell: CellKey;
-  path: string;
+  path: CellKey[] | string;
   kind: MoveKind;
-  created_at: string;
+  created_at: Date | string;
+}
+
+function fromJson<T>(value: T | string): T {
+  return typeof value === "string" ? (JSON.parse(value) as T) : value;
+}
+
+function toIso(value: Date | string): string {
+  return new Date(value).toISOString();
 }
 
 function toGame(row: GameRow): Game {
   return {
     id: row.id,
-    board: JSON.parse(row.board) as Board,
+    board: fromJson(row.board),
     currentPlayer: row.current_player,
     status: row.status,
     winner: row.winner,
     moveCount: row.move_count,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
   };
 }
 
@@ -54,62 +64,61 @@ function toMove(row: MoveRow): Move {
     player: row.player,
     from: row.from_cell,
     to: row.to_cell,
-    path: JSON.parse(row.path) as CellKey[],
+    path: fromJson(row.path),
     kind: row.kind,
-    createdAt: row.created_at,
+    createdAt: toIso(row.created_at),
   };
 }
 
-function selectGame(id: string): GameRow | undefined {
-  return getDb().prepare("SELECT * FROM games WHERE id = ?").get(id) as
-    | GameRow
-    | undefined;
+async function selectGame(id: string): Promise<GameRow | undefined> {
+  const rows = await getDb().query<GameRow>("SELECT * FROM games WHERE id = $1", [id]);
+  return rows[0];
 }
 
-function requireGame(id: string): Game {
-  const row = selectGame(id);
+async function requireGame(id: string): Promise<Game> {
+  const row = await selectGame(id);
   if (!row) throw new GameError(404, `Game ${id} not found`);
   return toGame(row);
 }
 
-export function createGame(): Game {
+export async function createGame(): Promise<Game> {
   const id = randomUUID().replaceAll("-", "").slice(0, 10);
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      `INSERT INTO games (id, board, current_player, status, winner, move_count, created_at, updated_at)
-       VALUES (?, ?, 'red', 'active', NULL, 0, ?, ?)`,
-    )
-    .run(id, JSON.stringify(initialBoard()), now, now);
-  return requireGame(id);
+  const [row] = await getDb().query<GameRow>(
+    `INSERT INTO games (id, board, current_player, status, winner, move_count, created_at, updated_at)
+     VALUES ($1, $2::jsonb, 'red', 'active', NULL, 0, $3, $3)
+     RETURNING *`,
+    [id, JSON.stringify(initialBoard()), now],
+  );
+  return toGame(row);
 }
 
-export function getGame(id: string): Game | null {
-  const row = selectGame(id);
+export async function getGame(id: string): Promise<Game | null> {
+  const row = await selectGame(id);
   return row ? toGame(row) : null;
 }
 
-export function listMoves(id: string): Move[] {
-  requireGame(id);
-  const rows = getDb()
-    .prepare("SELECT * FROM moves WHERE game_id = ? ORDER BY move_number")
-    .all(id) as MoveRow[];
+export async function listMoves(id: string): Promise<Move[]> {
+  await requireGame(id);
+  const rows = await getDb().query<MoveRow>(
+    "SELECT * FROM moves WHERE game_id = $1 ORDER BY move_number",
+    [id],
+  );
   return rows.map(toMove);
 }
 
-export function resetGame(id: string): Game {
-  const db = getDb();
-  db.transaction(() => {
-    requireGame(id);
-    db.prepare("DELETE FROM moves WHERE game_id = ?").run(id);
-    db.prepare(
-      `UPDATE games
-       SET board = ?, current_player = 'red', status = 'active', winner = NULL,
-           move_count = 0, updated_at = ?
-       WHERE id = ?`,
-    ).run(JSON.stringify(initialBoard()), new Date().toISOString(), id);
-  })();
-  return requireGame(id);
+export async function resetGame(id: string): Promise<Game> {
+  const [row] = await getDb().query<GameRow>(
+    `WITH del AS (DELETE FROM moves WHERE game_id = $1)
+     UPDATE games
+     SET board = $2::jsonb, current_player = 'red', status = 'active', winner = NULL,
+         move_count = 0, updated_at = $3
+     WHERE id = $1
+     RETURNING *`,
+    [id, JSON.stringify(initialBoard()), new Date().toISOString()],
+  );
+  if (!row) throw new GameError(404, `Game ${id} not found`);
+  return toGame(row);
 }
 
 export interface MoveInput {
@@ -143,73 +152,84 @@ function parseMoveInput(input: MoveInput) {
   };
 }
 
+const STALE_BOARD = "The board has changed since you loaded it; refresh and try again";
+
 /**
- * Validates and applies one move atomically: turn order, marble ownership,
- * move legality, win detection, and the move-history record all happen in a
- * single SQLite transaction.
+ * Validates one move against the current game (turn order, marble ownership,
+ * legality, win detection), then writes it with a single guarded statement:
+ * the game update only matches if `move_count` is still what was read, and the
+ * history insert rides along in a CTE. A concurrent writer leaves 0 rows → 409.
  */
-export function submitMove(id: string, input: MoveInput): { game: Game; move: Move } {
+export async function submitMove(
+  id: string,
+  input: MoveInput,
+): Promise<{ game: Game; move: Move }> {
   const { from, to, player, expectedMoveCount } = parseMoveInput(input);
-  const db = getDb();
+  const game = await requireGame(id);
+  const mover = game.currentPlayer;
 
-  return db.transaction(() => {
-    const game = requireGame(id);
-    const mover = game.currentPlayer;
+  if (game.status === "finished") {
+    throw new GameError(409, `The game is over: ${game.winner} won`);
+  }
+  if (expectedMoveCount !== undefined && expectedMoveCount !== game.moveCount) {
+    throw new GameError(409, STALE_BOARD);
+  }
+  if (player !== undefined && player !== mover) {
+    throw new GameError(409, `It's ${mover}'s turn, not ${player}'s`);
+  }
 
-    if (game.status === "finished") {
-      throw new GameError(409, `The game is over: ${game.winner} won`);
-    }
-    if (expectedMoveCount !== undefined && expectedMoveCount !== game.moveCount) {
-      throw new GameError(409, "The board has changed since you loaded it; refresh and try again");
-    }
-    if (player !== undefined && player !== mover) {
-      throw new GameError(409, `It's ${mover}'s turn, not ${player}'s`);
-    }
+  const owner = game.board[from];
+  if (!owner) throw new GameError(400, `There is no marble at ${cellLabel(from)}`);
+  if (owner !== mover) {
+    throw new GameError(409, `That's a ${owner} marble, and it's ${mover}'s turn`);
+  }
 
-    const owner = game.board[from];
-    if (!owner) throw new GameError(400, `There is no marble at ${cellLabel(from)}`);
-    if (owner !== mover) {
-      throw new GameError(409, `That's a ${owner} marble, and it's ${mover}'s turn`);
-    }
+  const option = legalMoves(game.board, from).get(to);
+  if (!option) {
+    throw new GameError(400, `Illegal move from ${cellLabel(from)} to ${cellLabel(to)}`);
+  }
 
-    const option = legalMoves(game.board, from).get(to);
-    if (!option) {
-      throw new GameError(400, `Illegal move from ${cellLabel(from)} to ${cellLabel(to)}`);
-    }
+  const board = applyMove(game.board, from, to);
+  const won = hasWon(board, mover);
+  const now = new Date().toISOString();
 
-    const board = applyMove(game.board, from, to);
-    const won = hasWon(board, mover);
-    const now = new Date().toISOString();
-    const moveNumber = game.moveCount + 1;
-
-    db.prepare(
-      `INSERT INTO moves (game_id, move_number, player, from_cell, to_cell, path, kind, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, moveNumber, mover, from, to, JSON.stringify(option.path), option.kind, now);
-
-    db.prepare(
-      `UPDATE games
-       SET board = ?, current_player = ?, status = ?, winner = ?, move_count = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(
+  const [row] = await getDb().query<GameRow>(
+    `WITH upd AS (
+       UPDATE games
+       SET board = $3::jsonb, current_player = $4, status = $5, winner = $6,
+           move_count = move_count + 1, updated_at = $7
+       WHERE id = $1 AND move_count = $2 AND status = 'active'
+       RETURNING *
+     ), ins AS (
+       INSERT INTO moves (game_id, move_number, player, from_cell, to_cell, path, kind, created_at)
+       SELECT id, move_count, $8, $9, $10, $11::jsonb, $12, $7 FROM upd
+     )
+     SELECT * FROM upd`,
+    [
+      id,
+      game.moveCount,
       JSON.stringify(board),
       won ? mover : nextPlayer(board, mover),
       won ? "finished" : "active",
       won ? mover : null,
-      moveNumber,
       now,
-      id,
-    );
-
-    const move: Move = {
-      moveNumber,
-      player: mover,
+      mover,
       from,
       to,
-      path: option.path,
-      kind: option.kind,
-      createdAt: now,
-    };
-    return { game: requireGame(id), move };
-  })();
+      JSON.stringify(option.path),
+      option.kind,
+    ],
+  );
+  if (!row) throw new GameError(409, STALE_BOARD);
+
+  const move: Move = {
+    moveNumber: game.moveCount + 1,
+    player: mover,
+    from,
+    to,
+    path: option.path,
+    kind: option.kind,
+    createdAt: now,
+  };
+  return { game: toGame(row), move };
 }
