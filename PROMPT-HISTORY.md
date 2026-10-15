@@ -857,3 +857,49 @@ Steps 5 and 6 were committed together as `00afb3e`. Step 7 builds the UI.
   - **No console errors** on either clean run.
 - **Screenshots** of the error state, the desktop game, the 390 px game, and the history were reviewed. They're in the scratchpad, not committed.
 - **Cleanup:** a scratch script deleted all walkthrough data (17 `zzui_*` users, their sessions, and 6 games). Neon is left with the 5 original ownerless games and no users or sessions.
+
+### Interaction 10 — Step 8: Tests
+
+**User Prompt**
+
+> commit step 7 and start step 8
+
+**Agent Outcome**
+
+Step 7 was committed as `7724953`. Most of the plan's Step 8 tests had already been written as each step landed (Steps 2, 4, and 5):
+- `lib/password.test.ts`
+- `lib/users-repo.test.ts`
+- `app/actions/auth.test.ts`
+- the reworked `lib/games-repo.test.ts`
+
+So Step 8 covers what was still untested: the cookie glue, the route handlers as a whole, and the proxy.
+
+- **[`lib/session.test.ts`](lib/session.test.ts):** the real `session.ts` against PGlite, with an in-memory cookie jar in place of `next/headers`. It checks:
+  - the cookie options: `httpOnly`, `sameSite: "lax"`, `path: "/"`, and a `maxAge` of 30 days;
+  - that a missing or forged cookie means signed out, and `requireUser()` throws 401;
+  - that `endSession()` revokes the DB row, so a replayed copy of the old cookie fails;
+  - that sign-out with no cookie is a no-op.
+- **[`app/api/games/routes.test.ts`](app/api/games/routes.test.ts):** the real route handlers, `session.ts`, and repos against PGlite. Only the cookie store is faked. It checks:
+  - every endpoint returns 401 with no cookie or a forged one;
+  - a full flow: Red creates (201, with profile); Blue joins; Red moves while sending `"player":"blue"`, and the move is recorded as red; a third user gets 409 on join and 403 on move and reset, but can GET the game and moves.
+- **[`proxy.test.ts`](proxy.test.ts):**
+  - with no cookie, a 307 to `/?next=%2Fgames%2Fabc123`;
+  - with a cookie, the request passes through;
+  - the matcher is `/games/:path*`.
+
+**Rationale**
+
+`server-only` is aliased by Next's bundler and isn't an installed package. The tests that import `session.ts` stub it with `vi.mock("server-only", () => ({}))`. The PGlite setup is repeated in each file, matching the existing test files, rather than pulled into a shared helper in this step.
+
+**Changes**
+
+- Created:
+  - `lib/session.test.ts`
+  - `app/api/games/routes.test.ts`
+  - `proxy.test.ts`
+
+**Verification**
+
+- `npm test`: 69 passed across 9 files.
+- `npm run typecheck`, `npx eslint .`, and `next build` are clean. The build route list confirms Next doesn't treat `routes.test.ts` as a route.
+- **Mutation check:** the agent replaced `requireUser()` in the join route with a fixed fake user. The route test failed (2 tests: "expected 404 to be 401"). `git checkout` then restored the file.
