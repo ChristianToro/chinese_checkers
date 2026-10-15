@@ -2,15 +2,30 @@
 
 A two-player Chinese Checkers demo built with Next.js 16. No login. Play hot-seat on one screen, or share the game link and play from two browsers.
 
+Games are stored in [Neon](https://neon.com) serverless Postgres. (The `main` branch has the same app on a local SQLite file.)
+
+## Setup
+
+1. **Create a database.** This makes a temporary Neon database without an account and writes its pooled `DATABASE_URL` to `.env`:
+   ```bash
+   npm install
+   npx neonctl claim create --file .env
+   ```
+   Or create a project in the Neon Console and copy `.env.example` to `.env` with its connection string.
+2. **Create the tables.** `npm run db:migrate` applies `db/schema.sql`. It is idempotent, so it's safe to re-run.
+3. **Run it.** `npm run dev`, then open http://localhost:3000.
+4. **Claim the database within 72 hours,** or it is deleted. Until it's claimed it is capped at 100 MB of storage and 1 GB of transfer.
+   1. Run `npx neonctl claim accept`. It opens the claim page (add `--no-open` to just print the URL).
+   2. Sign in and take the project into a free Neon account.
+   3. Claiming revokes the old password. Copy the new connection string from the Neon Console into `DATABASE_URL` in `.env`, then restart `npm run dev`.
+
 ```bash
-npm install
-npm run dev        # http://localhost:3000
-npm test           # rules engine + repository tests (Vitest)
+npm test           # rules engine + repository tests (Vitest, in-memory PGlite; no Neon needed)
 npm run typecheck
 npm run lint
 ```
 
-Games live in a local SQLite file at `data/chinese-checkers.db`, which is git-ignored and created on first use. Set `DB_PATH` to use a different file, or `:memory:`.
+**Neon compute and polling.** An open game tab polls every 2 s, which keeps the Neon compute awake. About 5 minutes after the last tab closes, Neon scales to zero, so the next request has a short cold start.
 
 ## Rules implemented
 
@@ -26,12 +41,13 @@ Games live in a local SQLite file at `data/chinese-checkers.db`, which is git-ig
 |---|---|
 | Board geometry (axial hex coords, homes/targets, layout) | `lib/game/board.ts` |
 | Pure rules: legal moves, apply, win, turn order (shared by client and server) | `lib/game/rules.ts` |
-| SQLite connection + schema (`games`, `moves`) | `lib/db.ts` |
-| Game sessions: create/get/reset, transactional move submission | `lib/games-repo.ts` |
+| Postgres schema (`games`, `moves`), applied by `npm run db:migrate` | `db/schema.sql` |
+| Query seam over the Neon HTTP driver (swapped for PGlite in tests) | `lib/db.ts` |
+| Game sessions: create/get/reset, move submission as one guarded SQL write | `lib/games-repo.ts` |
 | API route handlers | `app/api/games/**/route.ts` |
 | UI: SVG board, turn indicator, move history, polling | `components/` |
 
-The client uses the shared rules only to highlight destinations. The server re-validates every move: turn order, marble ownership, legality, and an optional `expectedMoveCount` concurrency check.
+The client uses the shared rules only to highlight destinations. The server re-validates every move: turn order, marble ownership, legality, and an optional `expectedMoveCount` concurrency check. The write itself only applies if the game's `move_count` hasn't changed since it was read, so when two moves race, one gets a `409`.
 
 ## API
 

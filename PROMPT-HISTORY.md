@@ -267,3 +267,35 @@ The concurrency case uses `Promise.allSettled`, not the plan's `Promise.all`, be
 - `npm test`: 31 tests pass, 21 rules and 10 repository.
 - `npm run typecheck`, `npm run lint`, and `npm run build` are all clean. `/games/[id]` is still a Partial Prerender.
 - **Guard check:** the agent temporarily replaced `move_count = $2` in the guarded `UPDATE` with a condition that always holds. Only the concurrency test failed. The file was then restored from git.
+
+The user approved Milestone 3, committed as `c36c3b9`.
+
+#### Milestone 4 — Remove SQLite; env, gitignore, README (Step 6)
+
+**Changes**
+
+- `package.json`: removes `better-sqlite3` and `@types/better-sqlite3`.
+- `data/`: deleted from disk. It was never tracked, so the local SQLite games are gone on every branch, as decided.
+- `.gitignore`: drops `/data/` and adds `!.env.example`.
+- [`.env.example`](.env.example): a placeholder pooled `DATABASE_URL`.
+- [`README.md`](README.md):
+  - **Setup:** `npx neonctl claim create --file .env`, then `npm run db:migrate`, then `npm run dev`. Claim with `npx neonctl claim accept` within 72 h, and replace the rotated `DATABASE_URL`.
+  - **Polling and cold start:** a note on how the 2 s polling keeps Neon awake.
+  - **Architecture table:** updated for the new storage layer.
+  - **Guarded write:** a sentence on how it behaves.
+
+**Rationale**
+
+The plan left the exact provisioning command to be checked. To write the README correctly, the agent checked it now.
+- **Docs:** Neon's claimable-Postgres page gives `neon claim create --env-pull`.
+- **CLI help:** `npx neonctl@latest claim create --help` (v8.7.1) shows that `--env-pull` is already the default.
+- **Target file:** `--file` writes to an existing `.env` but otherwise falls back to `.env.local`. `db:migrate` reads only `.env`, so the README passes `--file .env`.
+- **Claim link:** it comes from `neon claim accept`; the CLI doesn't write it to `.env` as the plan expected.
+
+Only `--help` was run, and nothing was provisioned.
+
+**Verification**
+
+- `npm test` (31 tests), `npm run typecheck`, `npm run lint`, and `npm run build` all pass.
+- `grep better-sqlite3 lib app package.json` returns nothing.
+- `git check-ignore -v` confirms `.env`/`.env.local` are ignored and `.env.example` is re-included.
