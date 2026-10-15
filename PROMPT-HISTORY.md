@@ -382,3 +382,61 @@ The user approved Milestone 6, committed as `8b9b0cf`.
 **Collaboration**
 
 The user pushes the branch themselves, so the agent committed this but did not push.
+
+---
+
+## Session: 2026-10-15 (Authentication)
+
+**Objective:** Add username/password accounts with an avatar, and use them to track each user's game history. The work happens on branch `feature/authentication`, as milestones the user reviews.
+
+### Interaction 1 — Planning user accounts and game history
+
+**User Prompt**
+
+> Now that we have a neon db to leverage, I want to include authentication for users, with a username and a password.
+>
+> On the landing page an inauthenticated user will be prompted to create an account with a username, a password, and an avatar (assets are located in public/assets/avatars)
+>
+> The goal of having authenticated users is to track game history
+
+**Agent Outcome**
+
+The agent wrote [`PLAN-AUTH.md`](PLAN-AUTH.md) in plan mode, in 9 steps:
+- **Step 0:** housekeeping.
+- **Steps 1–7:** schema, auth core, session glue + `proxy.ts`, Server Actions, player-aware games repo, API routes, UI.
+- **Step 8:** tests.
+
+Before writing it, the agent read the existing data layer (`lib/db.ts`, `lib/games-repo.ts`, `db/schema.sql`) and the Next 16 docs it bundles. Those docs are `02-guides/authentication.md`, `authentication-with-cache-components.md`, `cookies.md` and `redirect.md`. `cacheComponents` is on, so every component that reads the session must sit behind `<Suspense>`, and cookies can only be set in Server Functions or Route Handlers.
+
+**Key decisions**
+
+| Decision | Choice | Decided by |
+|---|---|---|
+| Game ↔ users | The creator takes Red. A second signed-in user claims Blue from the share link. Only the account in the seat to move may move | User |
+| Signed-out visitors | Must sign in to play. Game links redirect to `/?next=/games/<id>` | User |
+| Auth flows | Sign up, log in, and log out | User |
+| Passwords | `node:crypto` scrypt with a per-user salt. No new dependency | Agent |
+| Sessions | DB `sessions` table holding the SHA-256 of a random token, which lives in an httpOnly `cc_session` cookie. Revocable, and needs no secret env var | Agent |
+| Forms | Server Actions with `useActionState`, per the Next auth guide. Game APIs stay route handlers | Agent |
+| History | A "Your games" list on the signed-in landing page | Agent |
+| Legacy games | `red_user_id` / `blue_user_id` are nullable. Joining fills an empty seat, so existing ownerless games need no special case | Agent |
+| Finished games | Can't be restarted, so the history stays intact | Agent |
+
+**Rationale**
+
+Server-derived seats make the history trustworthy: the server, not the client's `player` field, decides who moved. A consequence the agent flagged: hot-seat play (one screen, both colours) goes away, along with the per-tab seat picker.
+
+**Changes**
+
+- Created [`PLAN-AUTH.md`](PLAN-AUTH.md).
+
+**Verification**
+
+None yet. This interaction was planning only.
+
+**Collaboration**
+
+- **Design questions:** the agent asked three questions, and the user picked the recommended option each time: two seated players, sign-in required, full log-in/log-out.
+- **Approval:** the user rejected the plan-mode exit twice to restate the workflow:
+  > Write this plan into PLAN-AUTH.md at the root of the project. Complete each step as a separate milestone to be reviewed by me. After the review, commit and move on to the next step.
+- **Prompt history:** `prompt-history` is user-invoked only. The user ran `/prompt-history` and asked for `PLAN-AUTH.md` and this log to be committed before Step 1 starts.
