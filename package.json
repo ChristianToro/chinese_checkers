@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "better-sqlite3": "^13.0.3",
     "next": "16.4.1",
     "react": "19.3.0",

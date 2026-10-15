@@ -179,3 +179,38 @@ The user rejected the plan-mode exit and redirected. The agent was to log this s
 
 - Created: `PLAN-NEON.md`, the full Neon design: decisions, steps, SQL, and verification.
 - Committed on `main`: the complete SQLite app from Interactions 1–3, plus this log and `PLAN-NEON.md`. This commit is the baseline the `neon` branch will start from.
+
+---
+
+## Session: 2026-10-15 (Neon implementation)
+
+**Objective:** Carry out `PLAN-NEON.md` on branch `feature/neon_db`, with each step as a milestone that is reviewed and committed before the next one starts.
+
+### Interaction 1 — Execute PLAN-NEON as reviewed milestones
+
+**User Prompt**
+
+> Execute the steps in NEON-PLAN as milestones to be reviewed then committed separately before continuing.
+
+**Collaboration**
+
+- **Review.** The agent asked who should review each milestone. The user chose to **review every step themselves before it is committed**.
+- **Branch.** The user had already created `feature/neon_db` from the SQLite baseline `d97b303`, so it replaces the plan's `neon` branch. Step 0 needed no commit.
+- **Dependencies.** Each one is added in the step that first uses it, rather than all in Step 6. `@neondatabase/serverless` comes in Step 1 for the migrate script.
+
+#### Milestone 1 — Schema and migration script
+
+**Changes**
+
+- [`db/schema.sql`](db/schema.sql): the Postgres schema from the plan, unchanged.
+- [`scripts/migrate.mjs`](scripts/migrate.mjs): splits the schema on `;` and runs each statement through `neon()`'s `sql.query()`. Exits with a pointer to `.env.example` if `DATABASE_URL` is unset.
+- `package.json`: adds `db:migrate` and `@neondatabase/serverless@^1.2.0`.
+
+**Rationale**
+
+The script uses `--env-file-if-exists=.env` instead of the plan's `--env-file=.env`. With the plan's flag, a missing `.env` makes Node stop with `node: .env: not found`. With this one, the script prints its own message, and `DATABASE_URL` can also come from the shell.
+
+**Verification**
+
+- No Neon database exists yet; that is Step 7. The agent ran the same split-and-run logic against a throwaway PGlite in the session scratchpad. Two runs both succeeded, which shows the schema can safely be re-run. Both tables were created, and the `current_player` CHECK rejected `'green'`.
+- `npm run db:migrate` with no `.env` exits 1 and prints the `.env.example` hint.
