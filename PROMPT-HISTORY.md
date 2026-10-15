@@ -659,3 +659,115 @@ Step 3 was committed as `65b8833`. Step 4 adds:
   - logout.
 - `npm run typecheck` and `npx eslint app lib vitest.config.mts` are clean.
 - **Not yet verified:** the real cookie write (`startSession` through `cookies()`) needs a browser or a form POST. That comes with the Step 7 UI walkthrough.
+
+### Interaction 7 — Step 5: Player-aware games repository
+
+**User Prompt**
+
+> commit step 4 and start step 5
+
+**Agent Outcome**
+
+Step 4 was committed as `472f8ae`. Step 5 changes the following.
+
+**Types**
+- **[`lib/game/types.ts`](lib/game/types.ts):** adds `PlayerProfile { id, username, avatar }`. `Game` gains `red` / `blue: PlayerProfile | null`.
+- **`lib/users-repo.ts`:** `User` is now an alias of `PlayerProfile`, so there's one shape for "an account the client may see".
+
+**[`lib/games-repo.ts`](lib/games-repo.ts)**
+- **`withPlayers(source)`:** a SQL fragment that `LEFT JOIN`s `users` twice onto either `games` or a write CTE (`ins` / `upd`). Every read and write returns full profiles in one round trip.
+- **`seatOf(game, userId)`:** returns `"red"`, `"blue"`, or `null`. Exported for the UI.
+- **`createGame(userId)`:** puts the creator in the red seat.
+- **`joinGame(id, userId)` (new):** one guarded `UPDATE` fills the open seat, red first so legacy ownerless games work. It refuses a user who already holds the other seat, and it bumps `updated_at` so the opponent's poll sees the join.
+  - When 0 rows match, the game is re-read to choose between 404, a no-op (already seated), and 409 (both seats taken).
+- **`submitMove(id, userId, input)`:** the client-supplied `player` field is gone, and the seat comes from `userId`. Checks run in this order:
+  1. a non-player gets 403;
+  2. a finished game gets 409;
+  3. while an opponent is missing, 409 "Waiting for an opponent to join";
+  4. a stale `expectedMoveCount` gets 409;
+  5. the wrong seat gets 409;
+  6. then the existing ownership and legality checks.
+  The guarded CTE write is unchanged.
+- **`resetGame(id, userId)`:** a non-player gets 403, and a finished game gets 409, so its result stays in both players' history.
+- **`listGamesForUser(userId, limit = 20)` (new):** returns `{ game, myColor }`, ordered by `updated_at DESC`.
+
+**Attempted Approach / Resolution**
+
+In the old `resetGame`, the `DELETE FROM moves` CTE ran unconditionally next to the `UPDATE`. Now that reset is guarded on `status = 'active'`, that ordering could erase a finished game's history if it lost a race. The delete now keys off the update's rows: `WHERE game_id IN (SELECT id FROM upd)`.
+
+**Changes**
+
+- Modified:
+  - `lib/game/types.ts`
+  - `lib/users-repo.ts`
+  - `lib/games-repo.ts`
+  - `lib/games-repo.test.ts`
+
+**Tests** ([`lib/games-repo.test.ts`](lib/games-repo.test.ts))
+
+- **Setup:** 3 users are seeded by SQL (no scrypt cost). A `startGame()` helper creates a game and has Blue join.
+- **Updated:** the existing tests now pass user ids instead of `player`.
+- **Added:**
+  - the join flow: Blue seated, `updatedAt` bumped, a third user refused, rejoin a no-op, no double-seating, an ownerless game filling red first;
+  - racing joiners;
+  - waiting for an opponent before the first move;
+  - 403 / 409 seat enforcement;
+  - reset by a player, 403 for a non-player, 409 on a finished game with its history intact;
+  - `listGamesForUser` ordering and `myColor`.
+- **Caveat:** PGlite is single-connection, so the "racing" tests check the SQL guards, not true parallelism. The same was already true of the concurrent-move test.
+
+**Verification**
+
+- `npm test`: 59 passed.
+- `npx eslint lib` is clean.
+- **`npm run typecheck` fails as expected,** with 3 `TS2554` argument-count errors. They're in `app/api/games/route.ts`, `[id]/moves/route.ts`, and `[id]/reset/route.ts`, the call sites that Step 6 rewrites to pass `requireUser()`'s id.
+
+### Interaction 8 — Step 6: API routes (committed together with Step 5)
+
+**User Prompt**
+
+> Make steps 5 and 6 in one commit
+
+**Agent Outcome**
+
+The agent offered a choice: commit Step 5 on its own, which would fail `tsc`, or fold it into Step 6. The user chose a single commit, so every commit on the branch typechecks.
+
+- **Every handler under [`app/api/games/`](app/api/games/)** calls `requireUser()` inside `handle()`, so signed-out requests get a 401 `{ error: "Sign in to play" }`.
+  - `POST /api/games` → `createGame(user.id)`.
+  - `POST …/moves` → `submitMove(id, user.id, …)`. It no longer reads `player` from the body.
+  - `POST …/reset` → `resetGame(id, user.id)`.
+  - The GETs require sign-in but no seat, so spectators can still read.
+- **[`app/api/games/[id]/join/route.ts`](app/api/games/[id]/join/route.ts) (new):** `POST` → `joinGame(id, user.id)`.
+- **[`lib/api-client.ts`](lib/api-client.ts):** adds `joinGame`. `player` is removed from `SubmitMoveBody`.
+- **[`components/GameClient.tsx`](components/GameClient.tsx):** a one-line removal of the `player` field it sent. This is pulled forward from Step 7 because the narrower `SubmitMoveBody` would otherwise fail `tsc`. The seat picker is still there; it goes in Step 7.
+
+**Changes**
+
+- Created: `app/api/games/[id]/join/route.ts`.
+- Modified:
+  - `app/api/games/route.ts`
+  - `app/api/games/[id]/route.ts`
+  - `[id]/moves/route.ts`
+  - `[id]/reset/route.ts`
+  - `lib/api-client.ts`
+  - `components/GameClient.tsx`
+
+**Verification**
+
+- `npm run typecheck`, `npx eslint app lib components`, and `npm test` (59 passed) are clean.
+- **End to end against Neon.** A scratch script seeded 3 throwaway users (`zzcheck_*`), each with a 1-hour session row. The agent then ran `next dev -p 3107` and sent curl requests with `cc_session` cookies:
+
+  | Case | Result |
+  |---|---|
+  | Signed out, or a bogus cookie | 401 |
+  | Red creates a game, then moves before Blue joins | 409 "Waiting for an opponent to join" |
+  | Blue joins | 200, both usernames in the response |
+  | Eve joins | 409 "Both seats in this game are taken" |
+  | Eve moves | 403 |
+  | Blue moves on Red's turn | 409 |
+  | Red moves while sending `"player":"blue"` | 200; the field is ignored |
+  | Eve resets | 403 |
+  | Signed-out GET | 401 |
+  | Eve GETs moves | 200 (spectator read) |
+
+  The dev log had no errors. The script then deleted its game and users; their sessions went with them through `ON DELETE CASCADE`.

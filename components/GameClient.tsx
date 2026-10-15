@@ -162,7 +162,6 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
         const result = await api.submitMove(game.id, {
           from,
           to: key,
-          player: seat === "both" ? undefined : seat,
           expectedMoveCount: game.moveCount,
         });
         setGame(result.game);

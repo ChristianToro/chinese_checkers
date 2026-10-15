@@ -1,14 +1,11 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { type Avatar, isAvatar } from "./avatars";
 import { getDb } from "./db";
+import type { PlayerProfile } from "./game/types";
 import { hashPassword, verifyPassword } from "./password";
 
-/** The narrow user shape: all that ever leaves the server. */
-export interface User {
-  id: string;
-  username: string;
-  avatar: Avatar;
-}
+/** The narrow user shape (all that ever leaves the server): a game's player profile. */
+export type User = PlayerProfile;
 
 export interface SignupInput {
   username: string;
