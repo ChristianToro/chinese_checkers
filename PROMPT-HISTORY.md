@@ -513,3 +513,53 @@ The plan's own note says `migrate.mjs` splits on `;`, and that is what caught th
 **Verification**
 
 The agent confirmed that `public/assets/` contains only the 5 avatar PNGs before staging it.
+
+### Interaction 4 — Step 2: Auth core
+
+**Agent Outcome**
+
+Step 1 was committed as `ad8640c`, together with the avatar assets. Step 2 adds the auth core: pure DB and crypto code, with no Next.js imports, so PGlite can test it.
+
+- **[`lib/avatars.ts`](lib/avatars.ts):**
+  - `AVATARS`, the 5 keys, kept in sync with the schema CHECK;
+  - `Avatar` type;
+  - `AVATAR_LABELS`;
+  - `isAvatar()`;
+  - `avatarSrc()`.
+- **[`lib/password.ts`](lib/password.ts):**
+  - `hashPassword()` uses `node:crypto` scrypt with a 16-byte salt and a 64-byte key, stored as `scrypt$<salt>$<hash>`.
+  - `verifyPassword()` uses `timingSafeEqual`. It rejects a malformed stored value or a key of the wrong length before running scrypt.
+- **[`lib/users-repo.ts`](lib/users-repo.ts):**
+  - `validateSignup()`: username 3–20 chars of `[A-Za-z0-9_-]`, trimmed. Password 8–128 chars, not trimmed. Avatar must be in `AVATARS`.
+  - `createUser()`: returns `null` on Postgres `23505`, which is a duplicate on the `lower(username)` index.
+  - `verifyCredentials()`: matches the username case-insensitively. When no such user exists, it checks the password against a dummy hash, so timing doesn't reveal which usernames exist.
+  - `createSession()`: 32 random bytes as base64url. Only the SHA-256 hex is stored, with a 30-day TTL.
+  - `findUserBySessionToken()`: filters on `expires_at > now`.
+  - `deleteSession()`.
+
+**Deviation from the plan**
+
+The plan puts all tests in Step 8. The agent wrote the tests for this step's code now, so the milestone can be verified when it's reviewed. Step 8 still covers the games-repo changes.
+- [`lib/password.test.ts`](lib/password.test.ts)
+- [`lib/users-repo.test.ts`](lib/users-repo.test.ts)
+
+**Changes**
+
+- Created:
+  - `lib/avatars.ts`
+  - `lib/password.ts`
+  - `lib/users-repo.ts`
+  - `lib/password.test.ts`
+  - `lib/users-repo.test.ts`
+
+**Verification**
+
+- `npm test`: 42 passed across 4 files, 11 of them new. The new tests cover:
+  - signup validation;
+  - case-insensitive duplicate rejection;
+  - no plaintext password in the stored row;
+  - right, wrong, and unknown-user credentials;
+  - the session lifecycle: create, look up, then delete;
+  - an expired session returning null;
+  - a token that's stored only as its hash.
+- `npm run typecheck` and `npx eslint lib` are clean.
