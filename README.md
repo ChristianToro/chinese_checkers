@@ -6,7 +6,7 @@ Games and accounts are stored in [Neon](https://neon.com) serverless Postgres. (
 
 ## Accounts and game history
 
-- **Sign up** on the landing page with a username, a password, and one of five avatars (`public/assets/avatars/`).
+- **Sign up** on the `/login` page (**Get started** on the landing page) with a username, a password, and one of five avatars (`public/assets/avatars/`).
   - Usernames are 3–20 letters, numbers, `-` or `_`, and are unique regardless of case.
   - Passwords are 8–128 characters.
   - Returning players use the **Log in** tab. **Log out** is in the header.
@@ -16,13 +16,13 @@ Games and accounts are stored in [Neon](https://neon.com) serverless Postgres. (
 - **History:** your games are listed under **Your games** on the landing page, newest first. Each row shows your opponent, your colour, the number of moves, the date, and the state: *Won*, *Lost*, *Your turn*, *Their turn* or *Waiting for opponent*.
 - **Restart:** either player can restart an unfinished game. Finished games can't be restarted, so their result stays in both players' history.
 
-You must be signed in to play. Opening a game link while signed out takes you to sign in first, then back to the game.
+You must be signed in to play. Opening a game link while signed out takes you to `/login` first, then back to the game.
 
 ## Look and feel
 
 The app has one dark theme, styled after a board game café at night: espresso and walnut surfaces, cream text, brass accents, and boards set on green felt. Headings use Fraunces, and body text uses Geist. The colours are Tailwind theme tokens in `app/globals.css` (`ink`, `surface`, `raised`, `line`, `cream`, `muted`, `brass`, `felt`).
 
-The landing page's hero is a scripted **six-player** game on a loop, with 60 marbles to match the headline. Real games are two-player. The "Follow every move" table under it logs the same scripted moves as they happen. The script is built once from the real move search (`reachableFrom` in `lib/game/rules.ts`) with a fixed seed, so every visitor sees the same game. With `prefers-reduced-motion`, the hero and the table show a still mid-game frame.
+The landing page's hero is a scripted **six-player** game on a loop, with 60 marbles to match the headline. Real games are two-player. The "Follow every move" table under it logs the same scripted moves as they happen, and the "Take a seat" card fills in a log in form on its own loop; hovering it shows **Get started**. The script is built once from the real move search (`reachableFrom` in `lib/game/rules.ts`) with a fixed seed, so every visitor sees the same game. With `prefers-reduced-motion`, the hero and the table show a still mid-game frame, and the log in card shows its finished state.
 
 ## Setup
 

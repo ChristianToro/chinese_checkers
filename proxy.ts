@@ -10,7 +10,7 @@ const SESSION_COOKIE = "cc_session";
  */
 export function proxy(request: NextRequest) {
   if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
-  const signIn = new URL("/", request.url);
+  const signIn = new URL("/login", request.url);
   signIn.searchParams.set("next", request.nextUrl.pathname);
   return NextResponse.redirect(signIn);
 }

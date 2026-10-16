@@ -46,6 +46,25 @@ function subscribeVisibility(onChange: () => void) {
   return () => document.removeEventListener("visibilitychange", onChange);
 }
 
+/**
+ * When a landing animation should hold still: `reduced` under
+ * prefers-reduced-motion (show a still frame), `hidden` while the tab is in the
+ * background (just pause). Both are false on the server.
+ */
+export function useMotionGate(): { reduced: boolean; hidden: boolean } {
+  const reduced = useSyncExternalStore(
+    subscribeMotion,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
+  const hidden = useSyncExternalStore(
+    subscribeVisibility,
+    () => document.hidden,
+    () => false,
+  );
+  return { reduced, hidden };
+}
+
 const DemoClockContext = createContext<DemoClock>(START);
 
 export function useDemoClock(): DemoClock {
@@ -58,16 +77,7 @@ export function useDemoClock(): DemoClock {
  * render is the starting position, matching the server's HTML.
  */
 export default function DemoPlayback({ children }: { children: ReactNode }) {
-  const reduced = useSyncExternalStore(
-    subscribeMotion,
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
-  const hidden = useSyncExternalStore(
-    subscribeVisibility,
-    () => document.hidden,
-    () => false,
-  );
+  const { reduced, hidden } = useMotionGate();
   const [clock, setClock] = useState(START);
 
   useEffect(() => {

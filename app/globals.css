@@ -19,7 +19,17 @@
       transform: translateY(-6px);
     }
   }
+
+  --animate-caret: caret 1s steps(1) infinite;
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
 }
+
+/* Devices with a real hover, the same test Tailwind's hover: variant uses. */
+@custom-variant can-hover (@media (hover: hover));
 
 @theme inline {
   --font-sans: var(--font-geist-sans);

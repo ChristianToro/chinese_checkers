@@ -31,7 +31,7 @@ async function LoadedGame({ id }: { id: string }) {
   await connection();
   // proxy.ts only checks that a cookie exists; this checks the session is real.
   const viewer = await getCurrentUser();
-  if (!viewer) redirect(`/?${new URLSearchParams({ next: `/games/${id}` })}`);
+  if (!viewer) redirect(`/login?${new URLSearchParams({ next: `/games/${id}` })}`);
   const game = await getGame(id);
   if (!game) notFound();
   return (

@@ -354,3 +354,65 @@ npm run lint && npm run typecheck && npm test   # clean; 74 tests passed
 ```
 
 The clipboard write was not exercised in a browser; it needs a signed-in game page.
+
+---
+
+## Session: 2026-10-16 (Get started CTA)
+
+**Objective:** Make step 1 of the landing page's CTA an animated log-in illustration with a hover "Get started" button that leads to a new log-in page.
+
+### Interaction 1 — Simulated log in for step 1, and a `/login` page
+
+**User Prompt**
+
+> The landing page needs adjustment: item 1 in the CTA should simulate a log in process where text is being entered in both forms to match the other cards in the section. On user hover, the card should display "Get started" button. When clicked it reroutes to a new page with the log in component
+
+**Agent Outcome**
+
+- Signed out, step 1 ("Take a seat") is now an illustration like steps 2 and 3, not the real form. [`components/landing/SignInDemo.tsx`](components/landing/SignInDemo.tsx) loops through a log in: "mei" is typed into Username with a blinking caret, ten dots into Password, the button reads "Logging in…", then a "mei took a seat" row slides in. Signed in, step 1 still shows "Welcome back" and **Open a new table**.
+- Hovering the card (or keyboard focus inside it) dims it and fades in **Get started**. The link's `::after` covers the whole card, so a click anywhere on it goes to `/login`. On devices without hover the button sits under the illustration instead of over it.
+- New page [`app/login/page.tsx`](app/login/page.tsx): a "Take a seat" heading and the existing `AuthForm` (Create account / Log in tabs). It reads the session behind `<Suspense>`, and a visitor who is already signed in is redirected to `safeNext(next)`.
+- The signed-out redirect for game pages now targets `/login?next=…` instead of `/?next=…`, in both `proxy.ts` and the session check in `app/games/[id]/page.tsx`, since the landing page no longer carries the form.
+
+**Rationale**
+
+The demo runs on its own frame list rather than the hero's `DemoPlayback` clock, because typing has a different rhythm from hops. It shares the reduced-motion and hidden-tab checks through a new `useMotionGate()` hook extracted from `DemoPlayback`. A `can-hover` custom variant (`@media (hover: hover)`, the same test Tailwind's `hover:` uses) switches the button between overlay and in-flow, so touch users still get a visible button. The animated fields are `aria-hidden`, and the figure's caption describes the illustration.
+
+`app/globals.css` additions:
+
+```css
+  --animate-caret: caret 1s steps(1) infinite;
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
+}
+
+/* Devices with a real hover, the same test Tailwind's hover: variant uses. */
+@custom-variant can-hover (@media (hover: hover));
+```
+
+**Changes**
+
+- [`components/landing/SignInDemo.tsx`](components/landing/SignInDemo.tsx) (new): the looping log-in illustration.
+- [`app/login/page.tsx`](app/login/page.tsx) (new): the account page.
+- `app/page.tsx`: `Seat` renders the demo card with the hover overlay and **Get started** link. `Home` no longer reads `searchParams`.
+- `components/landing/DemoPlayback.tsx`: `useMotionGate()` extracted and exported.
+- `app/globals.css`: caret animation and `can-hover` variant.
+- `proxy.ts`, `proxy.test.ts`, `app/games/[id]/page.tsx`: sign-in redirect goes to `/login`.
+- `components/AuthForm.tsx`: doc comment. `README.md`: sign-up location, redirect target, and the step 1 animation.
+
+**Verification**
+
+```bash
+npm run typecheck && npm run lint && npm test   # clean; 74 tests passed
+```
+
+Against `next dev`, curl showed `/login` returning 200 with the form and `/games/abc` signed out returning 307 to `/login?next=%2Fgames%2Fabc`. Headless-Chrome screenshots at 1280 px covered the typing frames, the seated frame, and the hover overlay, and a click on the card landed on `/login`. A 390 px touch viewport showed the button below the illustration.
+
+On the first run the new animation and `can-hover` rules were missing from the compiled CSS. Turbopack's persistent cache in `.next/dev` was stale; deleting it and restarting fixed it. Not checked: the signed-in redirect away from `/login` (needs an account in the database) and a `next build`.
+
+**Collaboration**
+
+This reverses a call from the UI rework session, where the user asked for no "Get started" button and for step 1 to be the real form. The agent read "both forms" as the username and password fields and chose to open `/login` on the Create account tab. Both choices were flagged to the user, who asked to commit without changing either.

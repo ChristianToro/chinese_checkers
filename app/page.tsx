@@ -1,6 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import AuthForm from "@/components/AuthForm";
 import Avatar from "@/components/Avatar";
 import FeltTable from "@/components/FeltTable";
 import GameHistory from "@/components/GameHistory";
@@ -10,7 +10,8 @@ import DemoPlayback from "@/components/landing/DemoPlayback";
 import HeroBoard from "@/components/landing/HeroBoard";
 import InviteCard from "@/components/landing/InviteCard";
 import MoveTracker from "@/components/landing/MoveTracker";
-import { card, eyebrow } from "@/components/ui";
+import SignInDemo from "@/components/landing/SignInDemo";
+import { buttonPrimary, card, eyebrow } from "@/components/ui";
 import { listGamesForUser } from "@/lib/games-repo";
 import { getCurrentUser } from "@/lib/session";
 
@@ -22,7 +23,7 @@ const RULES = [
   "The first player to fill the opposite point wins.",
 ];
 
-export default function Home({ searchParams }: PageProps<"/">) {
+export default function Home() {
   return (
     <>
       <SiteHeader />
@@ -68,7 +69,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
             <ol className="mt-10 grid gap-6 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
               <Step n={1} title="Take a seat" blurb="Make a free account or log in." className="lg:row-span-2">
                 <Suspense fallback={<p className="py-8 text-muted">Loading…</p>}>
-                  <Seat searchParams={searchParams} />
+                  <Seat />
                 </Suspense>
               </Step>
               <Step n={2} title="Send the invite" blurb="One link is all your opponent needs.">
@@ -128,12 +129,28 @@ function Step({
   );
 }
 
-/** Step 1: sign up or log in, or start a game once seated. Reads the session. */
-async function Seat({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
+/**
+ * Step 1: a simulated log in that offers "Get started" on hover, or a way to
+ * start a game once seated. Reads the session.
+ */
+async function Seat() {
   const user = await getCurrentUser();
   if (!user) {
-    const { next } = await searchParams;
-    return <AuthForm next={typeof next === "string" ? next : undefined} />;
+    return (
+      <div className={`${card} group relative flex flex-1 flex-col justify-center p-5`}>
+        <SignInDemo />
+        {/* With a mouse the button fades in over the card; on touch it sits below. */}
+        <div className="mt-5 flex justify-center can-hover:pointer-events-none can-hover:absolute can-hover:inset-0 can-hover:mt-0 can-hover:items-center can-hover:rounded-2xl can-hover:bg-ink/65 can-hover:opacity-0 can-hover:backdrop-blur-[2px] can-hover:transition-opacity can-hover:duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+          {/* The ::after stretches the link over the whole card, so any click on it counts. */}
+          <Link
+            href="/login"
+            className={`${buttonPrimary} pointer-events-auto px-8 py-3 text-lg after:absolute after:inset-0 after:rounded-2xl`}
+          >
+            Get started
+          </Link>
+        </div>
+      </div>
+    );
   }
   return (
     <div className={`${card} flex flex-col items-center gap-5 p-8 text-center`}>

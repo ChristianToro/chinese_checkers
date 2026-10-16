@@ -10,7 +10,7 @@ const submitClass = `${buttonPrimary} w-full px-6 py-3 text-lg`;
 
 type Mode = "signup" | "login";
 
-/** Create account / log in, for the signed-out landing page. */
+/** Create account / log in, for the /login page. */
 export default function AuthForm({ next }: { next?: string }) {
   const [mode, setMode] = useState<Mode>("signup");
   return (

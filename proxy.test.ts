@@ -6,7 +6,7 @@ describe("proxy", () => {
   it("sends a cookieless game visit to sign-in, remembering where it was going", () => {
     const res = proxy(new NextRequest("http://localhost:3000/games/abc123"));
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost:3000/?next=%2Fgames%2Fabc123");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fgames%2Fabc123");
   });
 
   it("lets a request with a session cookie through for the page to verify", () => {
