@@ -291,3 +291,31 @@ npm run build                                   # / still partially prerendered;
 ```
 
 The keyboard focus ring was **not** checked in a browser. It only appears on a playable board, which needs a signed-in game.
+
+The user approved milestone 5, which was committed as `a56872c`. The user pushes the branch themselves.
+
+### Session Summary
+
+**Completed**
+
+- [`PLAN-UI.md`](PLAN-UI.md) was carried out on `refactor/UI` as six reviewed milestones: `4114257` (plan), `87d8314` (theme and header), `763e416` (board art and game page), `bbe4dff` (demo script), `aefea86` (landing page), `a56872c` (README and polish).
+- A dark-only "board game café" theme across the app: Tailwind theme tokens, Fraunces headings, shared `ui.ts` classes, a shared `SiteHeader`, and boards on a felt `FeltTable`.
+- Shared board art (`components/board-art.tsx`) with a six-colour marble palette, used by both the playable board and the hero.
+- A landing page with the requested headline, a looping six-player hero board, and a three-step CTA flow: the real auth form, an illustrated invite link, and a move tracker logging the hero's moves in sync.
+
+**Key Decisions**
+
+- The user chose to retheme the whole app, to illustrate the existing share link instead of building invite codes, and to show six colours and 60 marbles in the hero.
+- The hero is a deterministic, precomputed script built from the real move search (`reachableFrom`, extracted from `legalMoves`). It is scored by on-screen distance so its moves look purposeful.
+- One playback clock (`DemoPlayback`) drives both the hero and the tracker. Reduced motion shows a still frame, and the loop pauses in hidden tabs.
+- There is no "Get started" button. The CTA is the flow itself, as the user asked.
+
+**Verification**
+
+- Lint, typecheck, 74 Vitest tests (5 of them new, for the demo script), and `next build` passed at every milestone. `/` and `/games/[id]` stayed partially prerendered.
+- Headless-Chrome screenshots of the signed-out landing page at 1280 px and 375 px, a reduced-motion run, a hero/tracker sync check, and static renders of the board and the demo frames.
+- The `?next=` sign-in redirect was rechecked against `next start`.
+
+**Open Items**
+
+- Not checked in a browser, because each needs accounts in the Neon database: the signed-in landing page ("Open a new table", "Your games"), the restyled game page during two-account play (players card, turn glow, polling), and the board's keyboard focus ring. A `npm run dev` pass with two accounts would cover all three.
