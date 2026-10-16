@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Neon CLI local project pointer (written by `neonctl claim create`)
 .neon
+
+# Cloudflare 
+.cloudflare.txt
