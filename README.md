@@ -10,13 +10,19 @@ Games and accounts are stored in [Neon](https://neon.com) serverless Postgres. (
   - Usernames are 3–20 letters, numbers, `-` or `_`, and are unique regardless of case.
   - Passwords are 8–128 characters.
   - Returning players use the **Log in** tab. **Log out** is in the header.
-- **Start a game** with **New Game**. You play Red.
+- **Start a game** with **Open a new table** on the landing page, or **New Game** on a game page. You play Red.
 - **Invite an opponent:** send them the link from **Copy link**. When they open it signed in, they click **Join as Blue**. Red moves first once both seats are filled.
 - **Who can move:** each player can only move their own colour, on their own turn, from their own account. Anyone else signed in who opens the link can watch but not play.
 - **History:** your games are listed under **Your games** on the landing page, newest first. Each row shows your opponent, your colour, the number of moves, the date, and the state: *Won*, *Lost*, *Your turn*, *Their turn* or *Waiting for opponent*.
 - **Restart:** either player can restart an unfinished game. Finished games can't be restarted, so their result stays in both players' history.
 
 You must be signed in to play. Opening a game link while signed out takes you to sign in first, then back to the game.
+
+## Look and feel
+
+The app has one dark theme, styled after a board game café at night: espresso and walnut surfaces, cream text, brass accents, and boards set on green felt. Headings use Fraunces, and body text uses Geist. The colours are Tailwind theme tokens in `app/globals.css` (`ink`, `surface`, `raised`, `line`, `cream`, `muted`, `brass`, `felt`).
+
+The landing page's hero is a scripted **six-player** game on a loop, with 60 marbles to match the headline. Real games are two-player. The "Follow every move" table under it logs the same scripted moves as they happen. The script is built once from the real move search (`reachableFrom` in `lib/game/rules.ts`) with a fixed seed, so every visitor sees the same game. With `prefers-reduced-motion`, the hero and the table show a still mid-game frame.
 
 ## Setup
 
@@ -34,7 +40,7 @@ You must be signed in to play. Opening a game link while signed out takes you to
    3. Claiming revokes the old password. Copy the new connection string from the Neon Console into `DATABASE_URL` in `.env`, then restart `npm run dev`.
 
 ```bash
-npm test           # rules, auth, repositories, API routes, and proxy (Vitest, in-memory PGlite; no Neon needed)
+npm test           # rules, demo script, auth, repositories, API routes, and proxy (Vitest, in-memory PGlite; no Neon needed)
 npm run typecheck
 npm run lint
 ```
@@ -63,7 +69,11 @@ npm run lint
 | Sign up, log in, and log out (Server Actions) | `app/actions/auth.ts` |
 | Sends signed-out visitors on `/games/*` to sign in | `proxy.ts` |
 | API route handlers | `app/api/games/**/route.ts` |
-| UI: auth form, game history, players card, SVG board, turn indicator, move history, polling | `components/` |
+| Board art shared by the game and the hero: geometry, six-colour marble palette, star, holes, marbles | `components/board-art.tsx` |
+| Theme class strings (cards, buttons, inputs) and the site header | `components/ui.ts`, `components/SiteHeader.tsx` |
+| Scripted six-player demo game for the landing page (pure, tested) | `lib/demo/script.ts` |
+| Landing hero and play flow: playback clock, animated board, invite example, move tracker | `components/landing/` |
+| Game UI: auth form, game history, players card, SVG board, turn indicator, move history, polling | `components/` |
 
 The client uses the shared rules only to highlight destinations. The server re-validates every move. It checks:
 - that the mover holds a seat in the game, taken from the session rather than the request body;

@@ -194,7 +194,7 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
             <button
               type="button"
               onClick={() => setError(null)}
-              className="font-semibold opacity-70 hover:opacity-100"
+              className="rounded px-1 font-semibold transition hover:text-cream focus-visible:outline-2 focus-visible:outline-brass"
               aria-label="Dismiss error"
             >
               ×

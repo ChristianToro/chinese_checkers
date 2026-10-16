@@ -258,3 +258,36 @@ Against `next start`, using headless Chrome with `--virtual-time-budget`:
 - **Redirects:** `/?next=/games/abc123` puts `next` into the auth form's hidden input, and `/games/abc123` without a cookie still 307s to `/?next=%2Fgames%2Fabc123`.
 
 The signed-in landing (step 1 "Open a new table" and the history list) was **not** checked in a browser, because that needs a Neon account.
+
+### Interaction 6 — Milestone 5: README and polish
+
+**User Prompt**
+
+> Approved. Commit then start milestone 5
+
+**Agent Outcome**
+
+Milestone 4 was committed as `aefea86`. Milestone 5 finishes `PLAN-UI.md`:
+- **README:**
+  - A new "Look and feel" section covers the dark-only café theme and its token names, and the fonts. It says the hero is a scripted six-player loop while real games are two-player, how the script is built (seeded, from `reachableFrom`), and that reduced motion shows a still frame.
+  - "Start a game" now names **Open a new table**.
+  - The test-command comment mentions the demo script.
+  - The Architecture table gains rows for `components/board-art.tsx`, `components/ui.ts` + `SiteHeader.tsx`, `lib/demo/script.ts`, and `components/landing/`.
+- **Contrast:** WCAG ratios were computed for the theme pairs. Muted on surface, raised, ink, and felt is 5.5–7.8:1; brass on ink is 8.4:1, and ink on brass 8.4:1. The one failure was `text-muted/70` on a surface (4.18:1), used for move numbers in `MoveHistory`; it now uses `text-muted`.
+- **Focus:**
+  - Board cells used `focus-visible:opacity-80`, which barely shows on the dark board. The hit-area circle now draws a cream ring on keyboard focus (`group-focus-visible:stroke-cream`), distinct from the brass selection ring. Its radius stays at `MARBLE_R + 4`; a first try at `+6` would have overlapped the neighbouring holes' hit areas.
+  - The error banner's dismiss button gains a brass focus outline in place of an opacity fade.
+- **Reduced motion:** already covered by the global CSS guard (which also stops the board's `animate-pulse` targets) and by `DemoPlayback`'s still frame, which was checked in milestone 4. Nothing changed.
+
+**Changes**
+
+- Modified: `README.md`, `components/Board.tsx`, `components/MoveHistory.tsx`, `components/GameClient.tsx`
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 74 tests passed
+npm run build                                   # / still partially prerendered; the focus-ring rule is in the built CSS
+```
+
+The keyboard focus ring was **not** checked in a browser. It only appears on a playable board, which needs a signed-in game.

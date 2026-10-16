@@ -34,7 +34,7 @@ export default function MoveHistory({ moves }: { moves: Move[] }) {
               key={move.moveNumber}
               className="flex items-center gap-2 rounded px-2 py-1 odd:bg-raised/50"
             >
-              <span className="w-8 text-right text-muted/70">{move.moveNumber}.</span>
+              <span className="w-8 text-right text-muted">{move.moveNumber}.</span>
               <MarbleDot color={PLAYER_MARBLE[move.player]} className="size-2.5" />
               <span className="sr-only">{move.player}</span>
               <span>

@@ -88,10 +88,15 @@ export default function Board({
             role={interactive ? "button" : undefined}
             tabIndex={interactive ? 0 : undefined}
             aria-label={description}
-            className={interactive ? "cursor-pointer outline-none focus-visible:opacity-80" : undefined}
+            className={interactive ? "group cursor-pointer outline-none" : undefined}
           >
-            {/* Generous invisible hit area. */}
-            <circle r={MARBLE_R + 3} fill="transparent" />
+            {/* Generous invisible hit area; its ring shows keyboard focus. */}
+            <circle
+              r={MARBLE_R + 4}
+              fill="transparent"
+              strokeWidth={3}
+              className="stroke-transparent group-focus-visible:stroke-cream"
+            />
             {occupant && <Marble prefix={PREFIX} color={PLAYER_MARBLE[occupant]} />}
             {canSelect && key !== selected && !disabled && (
               <circle
