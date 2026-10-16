@@ -55,3 +55,53 @@ Documentation only. The agent checked each claim against the code before writing
 **Collaboration**
 
 This picks up the README open item from the session summary.
+
+---
+
+## Session: 2026-10-15 (UI rework)
+
+**Objective:** Rework the UI on branch `refactor/UI`: a dark, cozy board-game-café theme across the app, plus a landing page with an animated hero and a CTA that walks through the actual game flow. Planned in [`PLAN-UI.md`](PLAN-UI.md).
+
+### Interaction 1 — UI rework request and plan
+
+**User Prompt**
+
+> The UI and interface needs rework.
+>
+> There needs to be a more engaging landing page with a HERO section: an minimal looping asset of a chinese checkerboard being played. Headline should be "Six points. Sixty marbles. One link to play!
+>
+> Make the CTA the actual game flow, not a get started (make free account/log in, send invite code, small player-move tracker table with simulated data)
+>
+> The visual direction should resemble a cozy, premium board game cafe, with dark tones.
+
+**Agent Outcome**
+
+Read the current UI (`app/page.tsx`, `components/*`, `app/globals.css`, `app/layout.tsx`) and wrote a five-milestone plan, saved as [`PLAN-UI.md`](PLAN-UI.md):
+0. Housekeeping: plan file and this log.
+1. Design foundation: dark-only café tokens in `app/globals.css`, Fraunces display font, shared class strings in `components/ui.ts`, a shared `SiteHeader`, and restyled auth/history components.
+2. Board art and game page: geometry and a six-colour marble palette pulled out of `Board.tsx` into `components/board-art.tsx`; game page restyled with no behaviour change.
+3. Scripted demo game: `reachableFrom()` extracted from `legalMoves` in `lib/game/rules.ts`; `lib/demo/script.ts` precomputes a deterministic six-player opening on the real board, with tests.
+4. Landing page: animated `HeroBoard` and a three-step "Pull up a chair" flow: the real auth form, an illustrated invite link, and a `MoveTracker` table that logs the hero's scripted moves in sync.
+5. README and polish.
+
+**Rationale**
+
+The hero and the tracker share one precomputed script and one playback clock, so the "simulated data" in the table is visibly the game on the board. Board geometry is shared rather than duplicated so the hero and the real board look the same.
+
+**Collaboration**
+
+The agent asked three questions, and the user chose the recommended option each time:
+- **Scope:** retheme the whole app, not only the landing page.
+- **Invite step:** illustrate the existing share link. Real short invite codes were offered and declined, so there is no backend change.
+- **Hero:** all six colours and 60 marbles, to match the headline, even though play stays two-player.
+
+Without asking, the agent chose dark-only (no light mode), Fraunces with Geist, no new dependencies, and a still frame under `prefers-reduced-motion`. The user approved the plan. It follows the user's standing milestone protocol from earlier phases: review and commit each step on `refactor/UI`, and never push.
+
+**Changes**
+
+- `PLAN-UI.md` (new): the approved plan.
+- `PROMPT-HISTORY.md`: this session.
+
+**Verification**
+
+Planning only; no code changed.
