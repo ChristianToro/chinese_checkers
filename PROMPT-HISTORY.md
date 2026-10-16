@@ -169,3 +169,42 @@ npm run build                                   # / and /games/[id] still partia
 ```
 
 The board was rendered with `renderToStaticMarkup` from a throwaway Vitest harness in the session scratchpad (not in the repo), on a felt background, with Red's corner marble selected. A headless-Chrome screenshot showed the marbles, the brass selection ring, the ruby target rings, and the tinted home points as intended. The full game page (players card, turn glow, polling, two-account play) was **not** checked in a browser, because that needs accounts in the Neon database.
+
+### Interaction 4 — Milestone 3: scripted six-player demo game
+
+**User Prompt**
+
+> commit it and start milestone 3
+
+**Agent Outcome**
+
+Milestone 2 was committed as `763e416`. Milestone 3 adds the game logic the landing hero will replay. It is pure code and adds no UI yet.
+- **`reachableFrom(isOccupied, from, allowed)`** in [`lib/game/rules.ts`](lib/game/rules.ts): the step and hop-chain search, taken out of `legalMoves` and blind to colour. `legalMoves` is now a thin wrapper that adds the "stay inside your target once there" restriction. The moving marble's own hole always counts as empty, so callers don't have to remove it from the board first.
+- **[`lib/demo/script.ts`](lib/demo/script.ts)** (new):
+  - `DEMO_SEATS`: the six star points clockwise from the top (ruby, topaz, jade, sapphire, amethyst, pearl), each with a made-up username, a home, and the opposite point as its target. Top and bottom match the real game's Red and Blue.
+  - `START`, `MARBLE_SEATS`: 60 marbles with stable ids, so the renderer can animate them.
+  - `DEMO_SCRIPT`: 36 moves (six rounds), computed once at module load. Each turn picks the move that gains the most ground toward the target's tip, with ties broken by a seeded mulberry32 PRNG, so every visitor sees the same game.
+  - `positionsAt(moveIndex, hop)`: marble positions part-way through a hop chain, read from precomputed snapshots.
+- **[`lib/demo/script.test.ts`](lib/demo/script.test.ts)** (new), 5 tests:
+  - 60 marbles start in six disjoint ten-hole points, and every home is exactly one seat's target;
+  - six rounds in seat order;
+  - every step goes to an adjacent empty hole, every hop goes over an occupied hole onto an empty one, and two marbles never share a hole;
+  - `positionsAt` advances one hole per hop;
+  - the script is deterministic.
+
+**Attempted Approach / Resolution**
+
+The first scoring used hex-step distance to the target's tip. A dump of the script showed hop chains that were "progress" in hex terms but went sideways or backwards on screen. One amethyst move ended in the bottom point. Scoring now uses straight-line distance in the drawn layout (`CELL_MAP` x/y). The resulting script has hop chains of 1–5 (12 single hops, 13 doubles, and 11 of three or more), and they get longer as the centre fills.
+
+**Changes**
+
+- New: `lib/demo/script.ts`, `lib/demo/script.test.ts`
+- Modified: `lib/game/rules.ts`
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 74 tests passed (69 before + 5 new)
+```
+
+The existing 40 rules tests passed unchanged after the `reachableFrom` refactor. The start, middle (move 18), and end positions were rendered with `StarBackdrop` and `Marble` in a scratchpad harness and screenshotted. All six points are tinted, and the marbles visibly cross toward their opposite points.

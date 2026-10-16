@@ -20,21 +20,35 @@ export function legalMoves(
   board: Board,
   from: CellKey,
 ): Map<CellKey, MoveOption> {
-  const moves = new Map<CellKey, MoveOption>();
   const player = board[from];
-  if (!player) return moves;
+  if (!player) return new Map();
 
   const target = TARGET[player];
   const locked = target.has(from);
-  const allowed = (key: CellKey) => !locked || target.has(key);
+  return reachableFrom(
+    (key) => !!board[key],
+    from,
+    (key) => !locked || target.has(key),
+  );
+}
 
-  // The moving marble has left its origin, so it can't be hopped over.
-  const rest: Board = { ...board };
-  delete rest[from];
+/**
+ * The step and hop search behind `legalMoves`, blind to colour and players:
+ * `isOccupied` says which holes hold a marble and `allowed` filters where the
+ * marble may stop or land. The moving marble's own hole counts as empty, since
+ * it has left it and can't be hopped over.
+ */
+export function reachableFrom(
+  isOccupied: (key: CellKey) => boolean,
+  from: CellKey,
+  allowed: (key: CellKey) => boolean = () => true,
+): Map<CellKey, MoveOption> {
+  const moves = new Map<CellKey, MoveOption>();
+  const occupied = (key: CellKey) => key !== from && isOccupied(key);
 
   for (const dir of DIRECTIONS) {
     const to = neighbor(from, dir);
-    if (to && !rest[to] && allowed(to)) {
+    if (to && !occupied(to) && allowed(to)) {
       moves.set(to, { path: [from, to], kind: "step" });
     }
   }
@@ -47,7 +61,7 @@ export function legalMoves(
     for (const dir of DIRECTIONS) {
       const over = neighbor(current, dir);
       const land = neighbor(current, dir, 2);
-      if (!over || !land || !rest[over] || rest[land]) continue;
+      if (!over || !land || !occupied(over) || occupied(land)) continue;
       if (visited.has(land) || !allowed(land)) continue;
       visited.add(land);
       parent.set(land, current);
