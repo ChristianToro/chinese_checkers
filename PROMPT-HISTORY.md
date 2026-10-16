@@ -416,3 +416,126 @@ On the first run the new animation and `can-hover` rules were missing from the c
 **Collaboration**
 
 This reverses a call from the UI rework session, where the user asked for no "Get started" button and for step 1 to be the real form. The agent read "both forms" as the username and password fields and chose to open `/login` on the Create account tab. Both choices were flagged to the user, who asked to commit without changing either.
+
+---
+
+## Session: 2026-10-16 (querying Neon)
+
+**Objective:** Find a way to send SQL queries to the Neon database by hand, then make it a project command.
+
+### Interaction 1 — How to query the Neon database
+
+**User Prompt**
+
+> What would be the procedure to send SQL queries to the neon database?
+
+**Agent Outcome**
+
+Neither `psql` nor `neonctl` is installed on this machine. The agent laid out three routes:
+
+1. A `node --env-file=.env --input-type=module -e '…'` one-liner that imports `neon` from `@neondatabase/serverless`, the driver already used by `lib/db.ts` and `scripts/migrate.mjs`. It works with nothing installed.
+2. `psql "$DATABASE_URL_UNPOOLED"` after `apt install postgresql-client`. The unpooled URL suits interactive sessions, because the pooler runs PgBouncer in transaction mode.
+3. The Neon Console SQL Editor, which is only available once the temporary database has been claimed (README setup step 4).
+
+It also warned that this is the live database: deletes cascade from `games` to `moves` and from `users` to `sessions`, and `password_hash` and `token_hash` shouldn't end up in shared output.
+
+**Collaboration**
+
+The agent offered to turn option 1 into a reusable `scripts/sql.mjs`, and the user accepted in the next prompt.
+
+### Interaction 2 — `npm run sql` and a README section
+
+**User Prompt**
+
+> yes, add the sql script, with a note on how to conduct the query in the readme, along with other queries through option 1's method
+
+**Agent Outcome**
+
+Added `npm run sql -- [--json] '<statement>' [param ...]`. It runs one statement and prints the rows with `console.table`, followed by the command tag and row count (`SELECT 6`, `UPDATE 0`). A new README section, "Querying the database", explains the quoting rules and lists 10 example queries:
+
+- tables and columns
+- games by status
+- accounts without `password_hash`
+- one player's games joined to both seats' usernames
+- games waiting for a second player
+- a game's moves
+- a game's board as JSON
+- unexpired sessions without `token_hash`
+- deleting expired sessions
+
+The section ends with a warning about cascades. A user who still holds a game seat can't be deleted, because the seat foreign keys have no `ON DELETE` action.
+
+`scripts/sql.mjs`
+
+```js
+// Runs one SQL statement against the database in DATABASE_URL and prints the
+// result: `npm run sql -- '<statement>' [param ...]`. Params fill $1, $2, ...
+// in order. `--json` prints the rows as JSON, for JSONB columns like `board`.
+import { neon } from "@neondatabase/serverless";
+
+const args = process.argv.slice(2);
+const json = args.includes("--json");
+const [text, ...params] = args.filter((arg) => arg !== "--json");
+
+if (!text) {
+  console.error("Usage: npm run sql -- [--json] '<statement>' [param ...]");
+  process.exit(1);
+}
+
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error("DATABASE_URL is not set; copy .env.example to .env and fill it in.");
+  process.exit(1);
+}
+
+const sql = neon(url);
+
+let result;
+try {
+  // The HTTP driver runs one statement per call.
+  result = await sql.query(text, params, { fullResults: true });
+} catch (error) {
+  console.error(`Error: ${error.message}`);
+  process.exit(1);
+}
+
+if (json) {
+  console.log(JSON.stringify(result.rows, null, 2));
+} else if (result.rows.length > 0) {
+  console.table(result.rows);
+}
+// On stderr, so `--json` output can be piped on its own.
+console.error(`${result.command} ${result.rowCount ?? result.rows.length}`);
+```
+
+**Rationale**
+
+The statement and its values are separate arguments, so values go through the driver's `$n` parameters instead of being spliced into the SQL. This also avoids nesting SQL single quotes inside the shell's single quotes, which the shell needs so that it doesn't expand `$1`. `fullResults: true` returns the command tag and `rowCount`, so writes report how many rows they touched. The summary goes to stderr so that `--json` output can be piped to another tool.
+
+**Changes**
+
+- [`scripts/sql.mjs`](scripts/sql.mjs) (new): the query runner.
+- `package.json`: `"sql": "node --env-file-if-exists=.env scripts/sql.mjs"`, loading `.env` the same way `db:migrate` does.
+- `README.md`: "Querying the database" section, and a `scripts/` row in the Architecture table.
+
+**Verification**
+
+Against the live Neon database, using read-only statements: every README example except the `DELETE` ran and returned the expected rows. That included parameterized queries and `--json` on `games.board`. The write path was checked with `UPDATE games SET id = id WHERE false` (`UPDATE 0`), which changes nothing. Also checked: the usage message with no arguments (exit 1) and a bad column (`Error: column "nope" does not exist`, exit 1). `npx eslint scripts/sql.mjs` was clean. The `DELETE FROM sessions` example was not run, to leave the data untouched.
+
+### Interaction 3 — Placeholder game id, then commit
+
+**User Prompt**
+
+> use a placeholder game id along with the real-world example, then commit
+
+**Agent Outcome**
+
+The move-history and board examples now pass `GAME_ID`. A comment above them shows where a real id comes from, using a game from this database as the example: the end of the game's URL, so `/games/b21a35f3c1` gives `b21a35f3c1`. Committed as `0031b57` ("Add npm run sql for one-off queries against Neon") on `refactor/UI`. Not pushed.
+
+**Rationale**
+
+The placeholder is a bare word rather than `<game-id>`, because angle brackets are shell redirection and the command would fail if pasted unedited. A pasted `GAME_ID` just matches no rows.
+
+**Collaboration**
+
+The first draft used the real game id `b21a35f3c1` directly. The agent pointed out that other databases won't have that id, and the user chose to keep it only as an example next to a placeholder.
