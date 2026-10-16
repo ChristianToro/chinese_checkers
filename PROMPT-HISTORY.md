@@ -319,3 +319,38 @@ The user approved milestone 5, which was committed as `a56872c`. The user pushes
 **Open Items**
 
 - Not checked in a browser, because each needs accounts in the Neon database: the signed-in landing page ("Open a new table", "Your games"), the restyled game page during two-account play (players card, turn glow, polling), and the board's keyboard focus ring. A `npm run dev` pass with two accounts would cover all three.
+
+---
+
+## Session: 2026-10-16 (UI rework, continued)
+
+**Objective:** Follow-ups after the UI rework was closed.
+
+### Interaction 7 — Copy link copies only the game path
+
+**User Prompt**
+
+> I established a work-around to avoid having to deploy the application with a service like vercel: using a Cloudflare quick tunnel, I can send a remote user a game session I start for them to participate in when I run `npm build && npm start` from my machine. The DB is allowing for the interaction to occur live.
+>
+> One change will help facilitate this process: the `share link` button should only copy `/game/[id]` instead of the entire localhost path. Since a tunnel provided url changes each instance, I will affix it when I share with a different user. Make this change.
+
+**Agent Outcome**
+
+`handleCopyLink` in [`components/GameClient.tsx`](components/GameClient.tsx) now copies `` `/games/${game.id}` `` instead of `window.location.href`. The user's host plays on `localhost`, while the remote player reaches the app through a quick-tunnel URL that changes every run. The copy-failure message now says "game path". The README's "Invite an opponent" bullet explains that the button copies a path, and that the sharer puts the site's address in front.
+
+**Rationale**
+
+The path is built from the game id rather than read from `window.location.pathname`, so the copied value can't pick up a query string or anything else from the current URL. The route is `/games/[id]`, plural, so the copied path uses that rather than the `/game/[id]` written in the prompt.
+
+**Changes**
+
+- `components/GameClient.tsx`: copy the path only.
+- `README.md`: the "Invite an opponent" bullet.
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 74 tests passed
+```
+
+The clipboard write was not exercised in a browser; it needs a signed-in game page.

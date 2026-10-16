@@ -154,14 +154,16 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
     });
   }
 
+  // Only the path: the host's public address (e.g. a tunnel URL) changes per
+  // session, so whoever shares the game puts it in front.
   function handleCopyLink() {
     navigator.clipboard
-      .writeText(window.location.href)
+      .writeText(`/games/${game.id}`)
       .then(() => {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1500);
       })
-      .catch(() => setError("Couldn't copy the link; copy it from the address bar."));
+      .catch(() => setError("Couldn't copy the game path; copy it from the address bar."));
   }
 
   return (

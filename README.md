@@ -11,7 +11,7 @@ Games and accounts are stored in [Neon](https://neon.com) serverless Postgres. (
   - Passwords are 8–128 characters.
   - Returning players use the **Log in** tab. **Log out** is in the header.
 - **Start a game** with **Open a new table** on the landing page, or **New Game** on a game page. You play Red.
-- **Invite an opponent:** send them the link from **Copy link**. When they open it signed in, they click **Join as Blue**. Red moves first once both seats are filled.
+- **Invite an opponent:** **Copy link** copies the game's path (`/games/<id>`), not a full URL, so it works wherever the app is served from (for example, a tunnel whose address changes each run). Put your site's address in front and send it. When they open it signed in, they click **Join as Blue**. Red moves first once both seats are filled.
 - **Who can move:** each player can only move their own colour, on their own turn, from their own account. Anyone else signed in who opens the link can watch but not play.
 - **History:** your games are listed under **Your games** on the landing page, newest first. Each row shows your opponent, your colour, the number of moves, the date, and the state: *Won*, *Lost*, *Your turn*, *Their turn* or *Waiting for opponent*.
 - **Restart:** either player can restart an unfinished game. Finished games can't be restarted, so their result stays in both players' history.
