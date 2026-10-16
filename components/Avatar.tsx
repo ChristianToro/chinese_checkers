@@ -19,7 +19,7 @@ export default function Avatar({
       alt={alt}
       width={size}
       height={size}
-      className={`shrink-0 rounded-full bg-white ring-1 ring-black/10 dark:ring-white/15 ${className}`}
+      className={`shrink-0 rounded-full bg-cream ring-1 ring-brass/40 ${className}`}
     />
   );
 }

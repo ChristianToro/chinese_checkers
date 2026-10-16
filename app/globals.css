@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
-:root {
-  --background: #faf7f2;
-  --foreground: #171717;
+/*
+ * The app is dark only. Components written with `dark:` variants follow the
+ * `dark` class on <html> rather than the OS setting, so they never flip light.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* A board game café after dark: espresso, walnut, cream, and brass. */
+@theme {
+  --color-ink: #120d0a;
+  --color-surface: #1d1510;
+  --color-raised: #2a1f17;
+  --color-line: rgb(232 200 150 / 0.12);
+  --color-cream: #f1e6d3;
+  --color-muted: #b4a288;
+  --color-brass: #d4a254;
+  --color-brass-strong: #e8bb6a;
+  --color-felt: #1c3229;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  /* A warm lamp hanging over the table. */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(212 162 84 / 0.16), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 10%, rgb(160 70 40 / 0.08), transparent 70%),
+    var(--color-ink);
+  background-attachment: fixed;
+  color: var(--color-cream);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: rgb(212 162 84 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

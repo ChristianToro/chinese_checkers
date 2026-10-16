@@ -4,21 +4,18 @@ import { useActionState, useState } from "react";
 import { type AuthFormState, login, signup } from "@/app/actions/auth";
 import { AVATARS, AVATAR_LABELS } from "@/lib/avatars";
 import Avatar from "./Avatar";
+import { buttonPrimary, card, fieldError, input } from "./ui";
+
+const submitClass = `${buttonPrimary} w-full px-6 py-3 text-lg`;
 
 type Mode = "signup" | "login";
-
-const inputClass =
-  "w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-base shadow-sm outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-600/30 aria-[invalid=true]:border-red-500 dark:border-white/15 dark:bg-white/5";
-
-const submitClass =
-  "w-full rounded-xl bg-amber-600 px-6 py-3 text-lg font-semibold text-white shadow transition hover:bg-amber-700 disabled:opacity-60";
 
 /** Create account / log in, for the signed-out landing page. */
 export default function AuthForm({ next }: { next?: string }) {
   const [mode, setMode] = useState<Mode>("signup");
   return (
-    <section className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-6 text-left shadow-sm dark:border-white/10 dark:bg-white/5">
-      <div role="tablist" aria-label="Account" className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-black/5 p-1 dark:bg-white/10">
+    <section className={`${card} w-full max-w-md p-6 text-left`}>
+      <div role="tablist" aria-label="Account" className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-line bg-ink/60 p-1">
         {(
           [
             ["signup", "Create account"],
@@ -33,8 +30,8 @@ export default function AuthForm({ next }: { next?: string }) {
             aria-selected={mode === value}
             aria-controls={`panel-${value}`}
             onClick={() => setMode(value)}
-            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-              mode === value ? "bg-white shadow-sm dark:bg-white/20" : "opacity-70 hover:opacity-100"
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-brass ${
+              mode === value ? "bg-raised text-cream shadow-sm" : "text-muted hover:text-cream"
             }`}
           >
             {label}
@@ -51,7 +48,7 @@ export default function AuthForm({ next }: { next?: string }) {
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="mt-1 text-sm text-red-600 dark:text-red-400">
+    <p id={id} className={`mt-1 ${fieldError}`}>
       {message}
     </p>
   );
@@ -77,12 +74,12 @@ function SignupForm({ next }: { next?: string }) {
           defaultValue={state.values?.username}
           aria-invalid={!!errors.username}
           aria-describedby={errors.username ? "signup-username-error" : "signup-username-hint"}
-          className={inputClass}
+          className={input}
         />
         {errors.username ? (
           <FieldError id="signup-username-error" message={errors.username} />
         ) : (
-          <p id="signup-username-hint" className="mt-1 text-xs opacity-60">
+          <p id="signup-username-hint" className="mt-1 text-xs text-muted">
             3–20 letters, numbers, dashes or underscores.
           </p>
         )}
@@ -99,12 +96,12 @@ function SignupForm({ next }: { next?: string }) {
           required
           aria-invalid={!!errors.password}
           aria-describedby={errors.password ? "signup-password-error" : "signup-password-hint"}
-          className={inputClass}
+          className={input}
         />
         {errors.password ? (
           <FieldError id="signup-password-error" message={errors.password} />
         ) : (
-          <p id="signup-password-hint" className="mt-1 text-xs opacity-60">
+          <p id="signup-password-hint" className="mt-1 text-xs text-muted">
             At least 8 characters.
           </p>
         )}
@@ -116,7 +113,7 @@ function SignupForm({ next }: { next?: string }) {
             <label
               key={avatar}
               title={AVATAR_LABELS[avatar]}
-              className="cursor-pointer rounded-full p-0.5 ring-2 ring-transparent transition hover:ring-amber-600/40 has-[:checked]:ring-amber-600 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-amber-600"
+              className="cursor-pointer rounded-full p-0.5 ring-2 ring-transparent transition hover:ring-brass/40 has-[:checked]:ring-brass has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brass"
             >
               <input
                 type="radio"
@@ -154,7 +151,7 @@ function LoginForm({ next }: { next?: string }) {
           autoComplete="username"
           required
           defaultValue={state.values?.username}
-          className={inputClass}
+          className={input}
         />
       </div>
       <div>
@@ -167,11 +164,11 @@ function LoginForm({ next }: { next?: string }) {
           type="password"
           autoComplete="current-password"
           required
-          className={inputClass}
+          className={input}
         />
       </div>
       {state.message && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className={fieldError}>
           {state.message}
         </p>
       )}

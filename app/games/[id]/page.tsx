@@ -1,33 +1,22 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import GameClient from "@/components/GameClient";
-import UserMenu from "@/components/UserMenu";
+import SiteHeader from "@/components/SiteHeader";
 import { getGame, listMoves } from "@/lib/games-repo";
 import { getCurrentUser } from "@/lib/session";
 
 export default function GamePage({ params }: PageProps<"/games/[id]">) {
   return (
     <main className="flex w-full flex-1 flex-col">
-      <header className="border-b border-black/10 dark:border-white/10">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            Chinese Checkers
-          </Link>
-          <div className="flex items-center gap-4">
-            <Suspense>
-              {params.then(({ id }) => (
-                <span className="hidden font-mono text-xs opacity-60 sm:inline">game {id}</span>
-              ))}
-            </Suspense>
-            <Suspense>
-              <UserMenu />
-            </Suspense>
-          </div>
-        </div>
-      </header>
-      <Suspense fallback={<p className="p-8 text-center opacity-60">Loading game…</p>}>
+      <SiteHeader>
+        <Suspense>
+          {params.then(({ id }) => (
+            <span className="hidden font-mono text-xs text-muted sm:inline">game {id}</span>
+          ))}
+        </Suspense>
+      </SiteHeader>
+      <Suspense fallback={<p className="p-8 text-center text-muted">Loading game…</p>}>
         {params.then(({ id }) => (
           <LoadedGame id={id} />
         ))}

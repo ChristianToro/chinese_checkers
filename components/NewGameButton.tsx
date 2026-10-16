@@ -3,8 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api-client";
+import { buttonPrimary, fieldError } from "./ui";
 
-export default function NewGameButton({ className }: { className?: string }) {
+export default function NewGameButton({
+  className,
+  label = "New Game",
+}: {
+  className?: string;
+  label?: string;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,15 +34,12 @@ export default function NewGameButton({ className }: { className?: string }) {
         type="button"
         onClick={start}
         disabled={pending}
-        className={
-          className ??
-          "rounded-xl bg-amber-600 px-6 py-3 text-lg font-semibold text-white shadow transition hover:bg-amber-700 disabled:opacity-60"
-        }
+        className={className ?? `${buttonPrimary} px-6 py-3 text-lg`}
       >
-        {pending ? "Setting up the board…" : "New Game"}
+        {pending ? "Setting up the board…" : label}
       </button>
       {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className={fieldError}>
           {error}
         </p>
       )}

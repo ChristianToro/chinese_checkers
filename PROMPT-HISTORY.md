@@ -105,3 +105,33 @@ Without asking, the agent chose dark-only (no light mode), Fraunces with Geist, 
 **Verification**
 
 Planning only; no code changed.
+
+### Interaction 2 — Milestone 1: café theme foundation and shared header
+
+**User Prompt**
+
+> commit it and start milestone 1
+
+**Agent Outcome**
+
+Milestone 0 was committed as `4114257`. Milestone 1 sets up the dark café look without yet changing the landing page's layout:
+- **Theme tokens** in [`app/globals.css`](app/globals.css), as Tailwind v4 `@theme` colours: `ink`, `surface`, `raised`, `line`, `cream`, `muted`, `brass`, `brass-strong`, and `felt`. The body has an espresso background with a warm radial "lamp glow". A `prefers-reduced-motion` guard shortens animations and transitions.
+- **Dark only.** The light palette is gone. `dark:` is redefined as a class variant, and `<html>` carries `dark`, so the game-page components that still use `dark:` classes (restyled in milestone 2) never flip to light on a light-mode OS.
+- **Fraunces** (variable, `opsz` and `SOFT` axes) is loaded in [`app/layout.tsx`](app/layout.tsx) as `--font-display`, so Tailwind's `font-display` class is available. Geist stays for UI text.
+- [`components/ui.ts`](components/ui.ts) (new): shared class strings `card`, `buttonPrimary`, `buttonSecondary`, `input`, `eyebrow`, `alertError`, and `fieldError`. Sizes are left to callers so conflicting padding utilities never meet.
+- [`components/SiteHeader.tsx`](components/SiteHeader.tsx) (new): a sticky header with a brass star mark, a Fraunces wordmark linking home, a slot for page extras, and `UserMenu` behind `Suspense`. It replaces the hand-built headers on `/` and `/games/[id]` (the game id goes in the slot).
+- Restyled with the tokens: `AuthForm`, `Avatar` (cream fill, brass ring), `UserMenu` (the username hides below `sm`), `NewGameButton` (gains an optional `label` prop for milestone 4), and `GameHistory` (brass "Your turn", emerald "Won", muted pills otherwise).
+
+**Changes**
+
+- New: `components/ui.ts`, `components/SiteHeader.tsx`
+- Modified: `app/globals.css`, `app/layout.tsx`, `app/page.tsx`, `app/games/[id]/page.tsx`, `components/AuthForm.tsx`, `components/Avatar.tsx`, `components/UserMenu.tsx`, `components/NewGameButton.tsx`, `components/GameHistory.tsx`
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 69 tests passed
+npm run build                                   # / and /games/[id] still partially prerendered
+```
+
+The signed-out landing page was screenshotted with headless Chrome against `next start`, at 1280 px and 375 px wide. The theme, the header, and the auth form render correctly, with no horizontal scroll. The signed-in views (history list, header user menu) and the game page were **not** checked visually, because that needs a test account in the Neon database.

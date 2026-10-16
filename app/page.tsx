@@ -3,7 +3,8 @@ import AuthForm from "@/components/AuthForm";
 import Avatar from "@/components/Avatar";
 import GameHistory from "@/components/GameHistory";
 import NewGameButton from "@/components/NewGameButton";
-import UserMenu from "@/components/UserMenu";
+import SiteHeader from "@/components/SiteHeader";
+import { card, eyebrow } from "@/components/ui";
 import { listGamesForUser } from "@/lib/games-repo";
 import { getCurrentUser } from "@/lib/session";
 
@@ -18,32 +19,26 @@ const RULES = [
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <>
-      <header className="flex w-full justify-end px-4 py-3">
-        <Suspense>
-          <UserMenu />
-        </Suspense>
-      </header>
+      <SiteHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-8 px-4 pb-12 pt-4 text-center sm:pt-8">
         <div className="flex items-center gap-3" aria-hidden>
           <span className="size-6 rounded-full bg-gradient-to-br from-red-300 via-red-600 to-red-900 shadow" />
           <span className="size-6 rounded-full bg-gradient-to-br from-blue-300 via-blue-600 to-blue-900 shadow" />
         </div>
         <div className="space-y-3">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Chinese Checkers</h1>
-          <p className="text-lg opacity-70">
+          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Chinese Checkers</h1>
+          <p className="text-lg text-muted">
             A two-player game across two screens. Every game you play is saved to your history.
           </p>
         </div>
 
-        <Suspense fallback={<p className="py-8 opacity-60">Loading…</p>}>
+        <Suspense fallback={<p className="py-8 text-muted">Loading…</p>}>
           <HomePanel searchParams={searchParams} />
         </Suspense>
 
-        <section className="w-full rounded-2xl border border-black/10 bg-white p-6 text-left shadow-sm dark:border-white/10 dark:bg-white/5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide opacity-70">
-            How to play
-          </h2>
-          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
+        <section className={`${card} w-full p-6 text-left`}>
+          <h2 className={`${eyebrow} mb-3`}>How to play</h2>
+          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed marker:text-brass">
             {RULES.map((rule) => (
               <li key={rule}>{rule}</li>
             ))}

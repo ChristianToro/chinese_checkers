@@ -9,11 +9,11 @@ export default async function UserMenu() {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Avatar avatar={user.avatar} size={28} />
-      <span className="font-medium">{user.username}</span>
+      <span className="hidden font-medium sm:inline">{user.username}</span>
       <form action={logout}>
         <button
           type="submit"
-          className="rounded-lg px-2 py-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+          className="rounded-lg px-2 py-1 text-muted transition hover:bg-raised hover:text-cream focus-visible:outline-2 focus-visible:outline-brass"
         >
           Log out
         </button>
