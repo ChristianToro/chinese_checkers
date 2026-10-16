@@ -47,6 +47,57 @@ npm run lint
 
 **Neon compute and polling.** An open game tab polls every 2 s, which keeps the Neon compute awake. About 5 minutes after the last tab closes, Neon scales to zero, so the next request has a short cold start.
 
+## Querying the database
+
+`npm run sql` sends one SQL statement to the database in `DATABASE_URL` (from `.env`) through the same Neon HTTP driver the app uses, and prints the rows as a table. No `psql` is needed.
+
+```bash
+npm run sql -- 'SELECT id, status, move_count FROM games ORDER BY updated_at DESC LIMIT 10'
+```
+
+- **Everything after `--` goes to the script.** The statement comes first, then its parameters, which fill `$1`, `$2`, ... in order.
+- **Quote the statement with single quotes** so the shell leaves `$1` alone. SQL string literals also use single quotes, so pass values as parameters instead of writing them inline. A statement with no `$` can use double quotes on the outside, as in the list of tables below.
+- **One statement per call.** The HTTP driver doesn't accept several statements separated by `;`.
+- **`--json` prints the rows as JSON** instead of a table. Use it for JSONB columns (`games.board`, `moves.path`), which don't fit in a table cell.
+- **The last line is the command and its row count** (`SELECT 10`, `DELETE 3`). It goes to stderr, so `--json` output can be piped on its own.
+
+Some useful queries:
+
+```bash
+# The tables in the database
+npm run sql -- "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+
+# Columns of one table
+npm run sql -- 'SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position' games
+
+# Games by status
+npm run sql -- 'SELECT status, count(*) FROM games GROUP BY status'
+
+# Accounts (leave out password_hash)
+npm run sql -- 'SELECT id, username, avatar, created_at FROM users ORDER BY created_at'
+
+# One player's games, with both seats by username (matched regardless of case)
+npm run sql -- 'SELECT g.id, g.status, g.winner, g.move_count, r.username AS red, b.username AS blue FROM games g LEFT JOIN users r ON r.id = g.red_user_id LEFT JOIN users b ON b.id = g.blue_user_id WHERE lower(r.username) = lower($1) OR lower(b.username) = lower($1) ORDER BY g.updated_at DESC' alice
+
+# Games still waiting for a second player
+npm run sql -- 'SELECT g.id, r.username AS red, g.created_at FROM games g LEFT JOIN users r ON r.id = g.red_user_id WHERE g.blue_user_id IS NULL ORDER BY g.created_at DESC'
+
+# A game's move history. Replace GAME_ID with the id at the end of the game's URL,
+# e.g. /games/b21a35f3c1 → b21a35f3c1
+npm run sql -- 'SELECT move_number, player, from_cell, to_cell, kind, created_at FROM moves WHERE game_id = $1 ORDER BY move_number' GAME_ID
+
+# A game's board, as JSON
+npm run sql -- --json 'SELECT board, current_player, status FROM games WHERE id = $1' GAME_ID
+
+# Signed-in sessions that haven't expired (leave out token_hash)
+npm run sql -- 'SELECT u.username, s.created_at, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.expires_at > now() ORDER BY s.expires_at DESC'
+
+# Clean up expired sessions
+npm run sql -- 'DELETE FROM sessions WHERE expires_at < now()'
+```
+
+This is the live database, so take care with writes. Deleting a game also deletes its moves, and deleting a user also deletes their sessions (`ON DELETE CASCADE`). A user who still holds a seat in a game can't be deleted until that seat is cleared.
+
 ## Rules implemented
 
 - 121-hole star. Red starts in the top point and Blue in the bottom point, 10 marbles each. Red moves first.
@@ -63,6 +114,7 @@ npm run lint
 | Pure rules: legal moves, apply, win, turn order (shared by client and server) | `lib/game/rules.ts` |
 | Postgres schema (`games`, `moves`, `users`, `sessions`), applied by `npm run db:migrate` | `db/schema.sql` |
 | Query seam over the Neon HTTP driver (swapped for PGlite in tests) | `lib/db.ts` |
+| Command-line scripts: apply the schema (`npm run db:migrate`), run one SQL statement (`npm run sql`) | `scripts/` |
 | Games: create, join, get, reset, per-user history, and moves as one guarded SQL write | `lib/games-repo.ts` |
 | Accounts: signup validation, credential checks, database sessions | `lib/users-repo.ts`, `lib/password.ts` |
 | Session cookie, current user, `requireUser()` for API routes | `lib/session.ts` |
