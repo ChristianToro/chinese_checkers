@@ -1,7 +1,8 @@
 import type { Game, Player } from "@/lib/game/types";
 import Avatar from "./Avatar";
+import { MarbleDot, PLAYER_MARBLE } from "./board-art";
+import { buttonPrimary, card } from "./ui";
 
-const DOT: Record<Player, string> = { red: "bg-red-600", blue: "bg-blue-600" };
 const NAME: Record<Player, string> = { red: "Red", blue: "Blue" };
 
 interface PlayersCardProps {
@@ -17,7 +18,7 @@ export default function PlayersCard({ game, mySeat, pending, onJoin }: PlayersCa
   return (
     <section
       aria-label="Players"
-      className="rounded-xl border border-black/10 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/5"
+      className={`${card} px-4 py-3`}
     >
       <ul className="space-y-2">
         {(["red", "blue"] as const).map((color) => {
@@ -25,25 +26,25 @@ export default function PlayersCard({ game, mySeat, pending, onJoin }: PlayersCa
           const toMove = game.status === "active" && game.currentPlayer === color && !openSeat;
           return (
             <li key={color} className="flex items-center gap-3">
-              <span className={`inline-block size-3 shrink-0 rounded-full ${DOT[color]}`} aria-hidden />
+              <MarbleDot color={PLAYER_MARBLE[color]} />
               {player ? (
                 <Avatar avatar={player.avatar} size={32} />
               ) : (
-                <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-black/20 dark:border-white/20" />
+                <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted/40" />
               )}
               <span className="min-w-0 flex-1 truncate">
                 <span className="sr-only">{NAME[color]}: </span>
                 {player ? (
                   <>
                     <span className="font-medium">{player.username}</span>
-                    {mySeat === color && <span className="opacity-60"> (you)</span>}
+                    {mySeat === color && <span className="text-muted"> (you)</span>}
                   </>
                 ) : (
-                  <span className="opacity-60">Open seat</span>
+                  <span className="text-muted">Open seat</span>
                 )}
               </span>
               {toMove && (
-                <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-950 dark:bg-amber-500/15 dark:text-amber-100">
+                <span className="shrink-0 rounded-full bg-brass/15 px-2 py-0.5 text-xs font-semibold text-brass-strong">
                   to move
                 </span>
               )}
@@ -56,18 +57,18 @@ export default function PlayersCard({ game, mySeat, pending, onJoin }: PlayersCa
           type="button"
           onClick={onJoin}
           disabled={pending}
-          className="mt-3 w-full rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
+          className={`${buttonPrimary} mt-3 w-full px-3 py-2 text-sm`}
         >
           Join as {NAME[openSeat]}
         </button>
       )}
       {openSeat && mySeat && (
-        <p className="mt-3 text-xs opacity-70">
+        <p className="mt-3 text-xs text-muted">
           Copy the link and send it to your opponent. The game starts when they join.
         </p>
       )}
       {!openSeat && !mySeat && (
-        <p className="mt-3 text-xs opacity-70">You&apos;re watching this game.</p>
+        <p className="mt-3 text-xs text-muted">You&apos;re watching this game.</p>
       )}
     </section>
   );

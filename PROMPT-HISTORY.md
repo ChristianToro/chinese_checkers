@@ -135,3 +135,37 @@ npm run build                                   # / and /games/[id] still partia
 ```
 
 The signed-out landing page was screenshotted with headless Chrome against `next start`, at 1280 px and 375 px wide. The theme, the header, and the auth form render correctly, with no horizontal scroll. The signed-in views (history list, header user menu) and the game page were **not** checked visually, because that needs a test account in the Neon database.
+
+### Interaction 3 — Milestone 2: board art and the game page
+
+**User Prompt**
+
+> commit it and start milestone 2
+
+**Agent Outcome**
+
+Milestone 1 was committed as `87d8314`. Milestone 2 restyles the board and game page with no change to how the game behaves:
+- [`components/board-art.tsx`](components/board-art.tsx) (new) holds the board's look, so the playable board and the milestone 4 hero share it:
+  - geometry (`UNIT`, `MARBLE_R`, `HOLE_R`, `px`, `VIEW_BOX`);
+  - a six-colour marble palette (`MARBLES`: ruby, sapphire, jade, topaz, amethyst, pearl), with `PLAYER_MARBLE` mapping Red → ruby and Blue → sapphire;
+  - SVG pieces: `MarbleGradients`, `Marble` (contact shadow and glint), and `StarBackdrop` (walnut star with a brass rim, tinted home points, recessed holes);
+  - `MarbleDot`, a CSS marble for lists.
+- Home-point outlines are now derived from any point's ten cells: the three cells farthest from the centroid are the corners. The hard-coded red and blue corners are gone, which lets the hero tint all six points.
+- [`components/Board.tsx`](components/Board.tsx) keeps its interaction logic. Holes moved into `StarBackdrop`. The selection ring is brass and the last-move trail is cream.
+- `GameClient` puts the board on a felt "table" panel and uses the `ui.ts` button and alert classes.
+- `TurnIndicator` glows in the mover's marble colour, and its winner banner is brass. `PlayersCard`, `MoveHistory`, and `GameHistory` use `MarbleDot` and the theme tokens. The not-found page uses Fraunces.
+- The `dark:` class variant and the `dark` class on `<html>` were removed. They were milestone 1's stopgap, and no `dark:` classes are left.
+
+**Changes**
+
+- New: `components/board-art.tsx`
+- Modified: `components/Board.tsx`, `GameClient.tsx`, `TurnIndicator.tsx`, `PlayersCard.tsx`, `MoveHistory.tsx`, `GameHistory.tsx`, `app/games/[id]/not-found.tsx`, `app/globals.css`, `app/layout.tsx`
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 69 tests passed
+npm run build                                   # / and /games/[id] still partially prerendered
+```
+
+The board was rendered with `renderToStaticMarkup` from a throwaway Vitest harness in the session scratchpad (not in the repo), on a felt background, with Red's corner marble selected. A headless-Chrome screenshot showed the marbles, the brass selection ring, the ruby target rings, and the tinted home points as intended. The full game page (players card, turn glow, polling, two-account play) was **not** checked in a browser, because that needs accounts in the Neon database.

@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { cellLabel } from "@/lib/game/board";
 import type { Move } from "@/lib/game/types";
+import { MarbleDot, PLAYER_MARBLE } from "./board-art";
+import { card, eyebrow } from "./ui";
 
 function describe(move: Move): string {
   if (move.kind === "step") return "step";
@@ -19,28 +21,26 @@ export default function MoveHistory({ moves }: { moves: Move[] }) {
   }, [moves.length]);
 
   return (
-    <section className="flex min-h-0 flex-col rounded-xl border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
-      <h2 className="border-b border-black/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide opacity-70 dark:border-white/10">
+    <section className={`${card} flex min-h-0 flex-col`}>
+      <h2 className={`${eyebrow} border-b border-line px-4 py-2.5`}>
         Move history
       </h2>
       {moves.length === 0 ? (
-        <p className="px-4 py-3 text-sm opacity-60">No moves yet. Red goes first.</p>
+        <p className="px-4 py-3 text-sm text-muted">No moves yet. Red goes first.</p>
       ) : (
         <ol ref={listRef} className="max-h-72 overflow-y-auto px-2 py-2 font-mono text-sm lg:max-h-[420px]">
           {moves.map((move) => (
             <li
               key={move.moveNumber}
-              className="flex items-center gap-2 rounded px-2 py-1 odd:bg-black/[0.03] dark:odd:bg-white/[0.04]"
+              className="flex items-center gap-2 rounded px-2 py-1 odd:bg-raised/50"
             >
-              <span className="w-8 text-right opacity-50">{move.moveNumber}.</span>
-              <span
-                className={`inline-block size-2.5 rounded-full ${move.player === "red" ? "bg-red-600" : "bg-blue-600"}`}
-                aria-label={move.player}
-              />
+              <span className="w-8 text-right text-muted/70">{move.moveNumber}.</span>
+              <MarbleDot color={PLAYER_MARBLE[move.player]} className="size-2.5" />
+              <span className="sr-only">{move.player}</span>
               <span>
                 {cellLabel(move.from)} → {cellLabel(move.to)}
               </span>
-              <span className="ml-auto text-xs opacity-60">{describe(move)}</span>
+              <span className="ml-auto text-xs text-muted">{describe(move)}</span>
             </li>
           ))}
         </ol>

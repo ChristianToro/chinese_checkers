@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-/*
- * The app is dark only. Components written with `dark:` variants follow the
- * `dark` class on <html> rather than the OS setting, so they never flip light.
- */
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* A board game café after dark: espresso, walnut, cream, and brass. */
 @theme {
   --color-ink: #120d0a;

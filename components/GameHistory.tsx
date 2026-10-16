@@ -1,9 +1,8 @@
 import Link from "next/link";
 import type { GameSummary } from "@/lib/games-repo";
 import Avatar from "./Avatar";
+import { MarbleDot, PLAYER_MARBLE } from "./board-art";
 import { card, eyebrow } from "./ui";
-
-const DOT = { red: "bg-red-500", blue: "bg-blue-500" } as const;
 
 const QUIET = "bg-raised text-muted";
 
@@ -51,7 +50,7 @@ export default function GameHistory({ games }: { games: GameSummary[] }) {
                       {opponent ? `vs ${opponent.username}` : "Open seat"}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted">
-                      <span className={`inline-block size-2 rounded-full ${DOT[myColor]}`} aria-hidden />
+                      <MarbleDot color={PLAYER_MARBLE[myColor]} className="size-2" />
                       You played {myColor} · {game.moveCount} {game.moveCount === 1 ? "move" : "moves"} ·{" "}
                       {dateFormat.format(new Date(game.updatedAt))}
                     </span>

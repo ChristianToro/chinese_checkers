@@ -1,9 +1,6 @@
 import type { Game, Player } from "@/lib/game/types";
-
-const DOT: Record<Player, string> = {
-  red: "bg-red-600",
-  blue: "bg-blue-600",
-};
+import { MarbleDot, PLAYER_MARBLE, tint } from "./board-art";
+import { card } from "./ui";
 
 const NAME: Record<Player, string> = { red: "Red", blue: "Blue" };
 
@@ -15,12 +12,12 @@ function nameOf(game: Game, player: Player): string {
 export default function TurnIndicator({ game, mySeat }: { game: Game; mySeat: Player | null }) {
   if (game.status === "finished" && game.winner) {
     return (
-      <div className="rounded-xl border border-amber-400 bg-amber-100 px-4 py-3 text-amber-950 dark:border-amber-500/60 dark:bg-amber-500/15 dark:text-amber-100">
-        <p className="flex items-center gap-2 text-lg font-semibold">
-          <span className={`inline-block size-4 rounded-full ${DOT[game.winner]}`} />
+      <div className="rounded-2xl border border-brass/60 bg-brass/10 px-4 py-3 text-brass-strong shadow-[0_0_40px_-12px_rgb(212_162_84/0.6)]">
+        <p className="flex items-center gap-2 font-display text-xl font-semibold">
+          <MarbleDot color={PLAYER_MARBLE[game.winner]} className="size-4" />
           {game.winner === mySeat ? "You win!" : `${nameOf(game, game.winner)} wins!`}
         </p>
-        <p className="text-sm opacity-80">
+        <p className="text-sm text-cream/80">
           All target holes filled after {game.moveCount} moves.
         </p>
       </div>
@@ -41,16 +38,18 @@ export default function TurnIndicator({ game, mySeat }: { game: Game; mySeat: Pl
     detail = `Waiting for ${nameOf(game, player)} to move…`;
   }
 
+  const color = PLAYER_MARBLE[player];
   return (
     <div
-      className="rounded-xl border border-black/10 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/5"
+      className={`${card} px-4 py-3 transition-shadow`}
+      style={ready ? { boxShadow: `0 0 0 1px ${tint(color, 0.35)}, 0 0 36px -10px ${tint(color, 0.65)}` } : undefined}
       aria-live="polite"
     >
-      <p className="flex items-center gap-2 text-lg font-semibold">
-        <span className={`inline-block size-4 rounded-full ${DOT[player]}`} />
+      <p className="flex items-center gap-2 font-display text-xl font-semibold">
+        <MarbleDot color={color} className="size-4" />
         {heading}
       </p>
-      <p className="text-sm opacity-70">{detail}</p>
+      <p className="text-sm text-muted">{detail}</p>
     </div>
   );
 }

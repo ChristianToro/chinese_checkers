@@ -10,12 +10,12 @@ import Board from "./Board";
 import MoveHistory from "./MoveHistory";
 import PlayersCard from "./PlayersCard";
 import TurnIndicator from "./TurnIndicator";
+import { alertError, buttonPrimary, buttonSecondary } from "./ui";
 
 const POLL_MS = 2000;
 const NO_MOVES: ReadonlyMap<CellKey, MoveOption> = new Map();
 
-const buttonClass =
-  "rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:bg-white/10 dark:hover:bg-white/15";
+const buttonClass = `${buttonSecondary} px-3 py-2 text-sm`;
 
 interface GameClientProps {
   initialGame: Game;
@@ -166,15 +166,18 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex items-start justify-center">
-        <Board
-          board={game.board}
-          selected={activeSelection}
-          highlights={highlights}
-          selectable={selectable}
-          lastPath={moves.at(-1)?.path ?? null}
-          disabled={pending}
-          onCellClick={handleCellClick}
-        />
+        {/* The felt table the board sits on. */}
+        <div className="flex w-full max-w-[680px] justify-center rounded-[2rem] bg-felt bg-[radial-gradient(ellipse_at_50%_35%,rgb(255_255_255/0.07),transparent_65%)] p-2 shadow-[inset_0_0_80px_rgb(0_0_0/0.55),0_30px_60px_-30px_rgb(0_0_0/0.9)] ring-1 ring-line sm:p-6">
+          <Board
+            board={game.board}
+            selected={activeSelection}
+            highlights={highlights}
+            selectable={selectable}
+            lastPath={moves.at(-1)?.path ?? null}
+            disabled={pending}
+            onCellClick={handleCellClick}
+          />
+        </div>
       </div>
 
       <aside className="flex min-w-0 flex-col gap-4">
@@ -185,7 +188,7 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
         {error && (
           <div
             role="alert"
-            className="flex items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200"
+            className={`${alertError} flex items-start justify-between gap-3`}
           >
             <span>{error}</span>
             <button
@@ -204,7 +207,7 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
             type="button"
             onClick={handleNewGame}
             disabled={pending}
-            className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
+            className={`${buttonPrimary} px-3 py-2 text-sm`}
           >
             New Game
           </button>
