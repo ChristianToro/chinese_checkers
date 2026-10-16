@@ -1,15 +1,21 @@
+import type { ReactNode } from "react";
 import { Suspense } from "react";
 import AuthForm from "@/components/AuthForm";
 import Avatar from "@/components/Avatar";
+import FeltTable from "@/components/FeltTable";
 import GameHistory from "@/components/GameHistory";
 import NewGameButton from "@/components/NewGameButton";
 import SiteHeader from "@/components/SiteHeader";
+import DemoPlayback from "@/components/landing/DemoPlayback";
+import HeroBoard from "@/components/landing/HeroBoard";
+import InviteCard from "@/components/landing/InviteCard";
+import MoveTracker from "@/components/landing/MoveTracker";
 import { card, eyebrow } from "@/components/ui";
 import { listGamesForUser } from "@/lib/games-repo";
 import { getCurrentUser } from "@/lib/session";
 
 const RULES = [
-  "Red starts in the top point of the star, Blue in the bottom point. Each has 10 marbles.",
+  "Two players, two screens. Red starts in the top point of the star, Blue in the bottom point, ten marbles each.",
   "On your turn, move one marble to an adjacent empty hole, or hop over a neighbouring marble (any colour) into the empty hole beyond.",
   "Hops can be chained in one turn, changing direction as you go. You can stop after any hop.",
   "Once a marble reaches the opposite point it can't leave it again.",
@@ -20,54 +26,149 @@ export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center gap-8 px-4 pb-12 pt-4 text-center sm:pt-8">
-        <div className="flex items-center gap-3" aria-hidden>
-          <span className="size-6 rounded-full bg-gradient-to-br from-red-300 via-red-600 to-red-900 shadow" />
-          <span className="size-6 rounded-full bg-gradient-to-br from-blue-300 via-blue-600 to-blue-900 shadow" />
-        </div>
-        <div className="space-y-3">
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Chinese Checkers</h1>
-          <p className="text-lg text-muted">
-            A two-player game across two screens. Every game you play is saved to your history.
-          </p>
-        </div>
+      <main className="flex w-full flex-1 flex-col">
+        <DemoPlayback>
+          <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-12 pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pb-20 lg:pt-16">
+            <div className="text-center lg:text-left">
+              <p className={eyebrow}>A board game café in your browser</p>
+              <h1 className="mt-4 text-balance font-display text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+                Six points. Sixty marbles.{" "}
+                <span className="italic text-brass">One link to play!</span>
+              </h1>
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted lg:mx-0">
+                Pull up a chair for Chinese Checkers across two screens. Open a table, send the
+                link, and play. Every game is kept in your history.
+              </p>
+              <a
+                href="#play"
+                className="mt-8 inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-brass-strong transition hover:text-cream focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brass"
+              >
+                Pull up a chair <span aria-hidden>↓</span>
+              </a>
+            </div>
+            <div className="relative">
+              {/* Lamplight pooling on the table. */}
+              <div
+                aria-hidden
+                className="absolute inset-x-[8%] -top-[6%] bottom-[10%] rounded-full bg-brass/20 blur-3xl"
+              />
+              <FeltTable className="relative p-3 sm:p-6">
+                <HeroBoard />
+              </FeltTable>
+            </div>
+          </section>
 
-        <Suspense fallback={<p className="py-8 text-muted">Loading…</p>}>
-          <HomePanel searchParams={searchParams} />
+          <section id="play" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 pb-16">
+            <div className="text-center lg:text-left">
+              <p className={eyebrow}>Pull up a chair</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+                From hello to first hop in three moves
+              </h2>
+            </div>
+            <ol className="mt-10 grid gap-6 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
+              <Step n={1} title="Take a seat" blurb="Make a free account or log in." className="lg:row-span-2">
+                <Suspense fallback={<p className="py-8 text-muted">Loading…</p>}>
+                  <Seat searchParams={searchParams} />
+                </Suspense>
+              </Step>
+              <Step n={2} title="Send the invite" blurb="One link is all your opponent needs.">
+                <div className={`${card} p-5`}>
+                  <InviteCard />
+                </div>
+              </Step>
+              <Step n={3} title="Follow every move" blurb="Each hop is logged as it happens.">
+                <div className={`${card} p-5`}>
+                  <MoveTracker />
+                </div>
+              </Step>
+            </ol>
+          </section>
+        </DemoPlayback>
+
+        <Suspense>
+          <TableNotes />
         </Suspense>
-
-        <section className={`${card} w-full p-6 text-left`}>
-          <h2 className={`${eyebrow} mb-3`}>How to play</h2>
-          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed marker:text-brass">
-            {RULES.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-        </section>
       </main>
     </>
   );
 }
 
-/** Reads the session, so it streams in behind the page's static shell. */
-async function HomePanel({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
+function Step({
+  n,
+  title,
+  blurb,
+  className = "",
+  children,
+}: {
+  n: number;
+  title: string;
+  blurb: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <li className={`flex min-w-0 flex-col gap-4 ${className}`}>
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-10 shrink-0 place-items-center rounded-full border border-brass/50 bg-brass/10 font-display text-lg font-semibold text-brass-strong"
+        >
+          {n}
+        </span>
+        <div>
+          <h3 className="font-display text-xl font-semibold">
+            <span className="sr-only">Step {n}: </span>
+            {title}
+          </h3>
+          <p className="text-sm text-muted">{blurb}</p>
+        </div>
+      </div>
+      {children}
+    </li>
+  );
+}
+
+/** Step 1: sign up or log in, or start a game once seated. Reads the session. */
+async function Seat({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   const user = await getCurrentUser();
   if (!user) {
     const { next } = await searchParams;
     return <AuthForm next={typeof next === "string" ? next : undefined} />;
   }
-
-  const games = await listGamesForUser(user.id);
   return (
-    <div className="flex w-full flex-col items-center gap-6">
-      <div className="flex items-center gap-3">
-        <Avatar avatar={user.avatar} size={48} />
-        <p className="text-lg">
-          Welcome back, <span className="font-semibold">{user.username}</span>
+    <div className={`${card} flex flex-col items-center gap-5 p-8 text-center`}>
+      <Avatar avatar={user.avatar} size={72} />
+      <div>
+        <p className="font-display text-2xl font-semibold">Welcome back, {user.username}</p>
+        <p className="mt-1 text-sm text-muted">
+          You&apos;re seated. Open a table and you&apos;ll play Red; copy its link for your opponent.
         </p>
       </div>
-      <NewGameButton />
-      <GameHistory games={games} />
+      <NewGameButton label="Open a new table" />
     </div>
+  );
+}
+
+/** Below the flow: your games once signed in, the house rules otherwise. */
+async function TableNotes() {
+  const user = await getCurrentUser();
+  return (
+    <section className="mx-auto w-full max-w-3xl px-4 pb-20">
+      {user ? (
+        <GameHistory games={await listGamesForUser(user.id)} />
+      ) : (
+        <div className={`${card} p-6 sm:p-8`}>
+          <h2 className={`${eyebrow} mb-4`}>House rules</h2>
+          <ol className="space-y-3 text-sm leading-relaxed">
+            {RULES.map((rule, i) => (
+              <li key={rule} className="flex gap-3">
+                <span className="w-5 shrink-0 font-display text-base text-brass">{i + 1}</span>
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </section>
   );
 }

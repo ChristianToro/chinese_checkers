@@ -11,6 +11,14 @@
   --color-brass: #d4a254;
   --color-brass-strong: #e8bb6a;
   --color-felt: #1c3229;
+
+  --animate-row-in: row-in 450ms ease-out;
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
 }
 
 @theme inline {

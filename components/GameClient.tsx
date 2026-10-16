@@ -7,6 +7,7 @@ import { legalMoves } from "@/lib/game/rules";
 import { seatOf } from "@/lib/game/seats";
 import type { CellKey, Game, Move, MoveOption, Player, PlayerProfile } from "@/lib/game/types";
 import Board from "./Board";
+import FeltTable from "./FeltTable";
 import MoveHistory from "./MoveHistory";
 import PlayersCard from "./PlayersCard";
 import TurnIndicator from "./TurnIndicator";
@@ -166,8 +167,7 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex items-start justify-center">
-        {/* The felt table the board sits on. */}
-        <div className="flex w-full max-w-[680px] justify-center rounded-[2rem] bg-felt bg-[radial-gradient(ellipse_at_50%_35%,rgb(255_255_255/0.07),transparent_65%)] p-2 shadow-[inset_0_0_80px_rgb(0_0_0/0.55),0_30px_60px_-30px_rgb(0_0_0/0.9)] ring-1 ring-line sm:p-6">
+        <FeltTable className="max-w-[680px] p-2 sm:p-6">
           <Board
             board={game.board}
             selected={activeSelection}
@@ -177,7 +177,7 @@ export default function GameClient({ initialGame, initialMoves, viewer }: GameCl
             disabled={pending}
             onCellClick={handleCellClick}
           />
-        </div>
+        </FeltTable>
       </div>
 
       <aside className="flex min-w-0 flex-col gap-4">

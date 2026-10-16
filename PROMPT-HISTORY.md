@@ -208,3 +208,53 @@ npm run lint && npm run typecheck && npm test   # clean; 74 tests passed (69 bef
 ```
 
 The existing 40 rules tests passed unchanged after the `reachableFrom` refactor. The start, middle (move 18), and end positions were rendered with `StarBackdrop` and `Marble` in a scratchpad harness and screenshotted. All six points are tinted, and the marbles visibly cross toward their opposite points.
+
+### Interaction 5 — Milestone 4: landing hero and the game-flow CTA
+
+**User Prompt**
+
+> Milestone approved. Commit and start milestone 4
+
+**Agent Outcome**
+
+Milestone 3 was committed as `bbe4dff`. Milestone 4 rebuilds the landing page in [`app/page.tsx`](app/page.tsx):
+- **Hero:**
+  - an eyebrow line ("A board game café in your browser");
+  - the headline *Six points. Sixty marbles. One link to play!* in Fraunces, with the last clause in brass italic;
+  - one line of copy and a quiet "Pull up a chair ↓" anchor (there is deliberately no "Get started" button);
+  - the animated six-player board on a felt table under a blurred lamplight glow.
+- **"Pull up a chair" flow** (`#play`), three numbered steps. Step 1 spans two rows on `lg`, and the steps stack on mobile:
+  1. **Take a seat.** Signed out, it shows the real `AuthForm`, and the `?next=` pass-through still works. Signed in, it shows the avatar, "Welcome back", and `NewGameButton` labelled "Open a new table". It stays behind `Suspense`, so the rest of the page is still in the static shell.
+  2. **Send the invite.** [`InviteCard`](components/landing/InviteCard.tsx) is a non-interactive example: a `…/games/k3f9q2` link with a "Copied!" chip and a "sol joined as Blue" toast, which matches the demo's sapphire player.
+  3. **Follow every move.** [`MoveTracker`](components/landing/MoveTracker.tsx) is a fixed-height table of the latest six scripted moves. A row is logged the moment its marble sets off, new rows ease in, and the newest is brass-tinted.
+- **Below the flow:** "Your games" (`GameHistory`) when signed in. Signed out, a numbered "House rules" card, whose first rule now says plainly that real games are two-player.
+
+New supporting pieces:
+- [`DemoPlayback`](components/landing/DemoPlayback.tsx) is a client context provider that owns the playback clock `{ move, hop, fading }`. It advances one hop every 420 ms, pauses 650 ms between moves, then holds, fades, and loops. It pauses while the tab is hidden and shows a still frame (move 18) under `prefers-reduced-motion`, both read with `useSyncExternalStore`. The hero and the tracker share it, so they stay in sync.
+- [`HeroBoard`](components/landing/HeroBoard.tsx) draws 60 `Marble`s as `<g>` elements positioned by CSS `transform`, so each hop glides. The moving marble scales up slightly, and the current path is drawn as a dashed trail. On reset, the transform transition is dropped so marbles fade back in place instead of flying home.
+- [`FeltTable`](components/FeltTable.tsx) is the felt panel, now shared by the hero and `GameClient`.
+- `app/globals.css` gains the `row-in` keyframes as the `animate-row-in` theme utility.
+
+**Rationale**
+
+One clock in a context, rather than two timers, keeps the tracker's "simulated data" exactly in step with the board. Positions come from `positionsAt` snapshots, so each frame is a lookup, not a replay.
+
+**Changes**
+
+- New: `components/landing/DemoPlayback.tsx`, `HeroBoard.tsx`, `MoveTracker.tsx`, `InviteCard.tsx`, `components/FeltTable.tsx`
+- Modified: `app/page.tsx`, `app/globals.css`, `components/GameClient.tsx`
+
+**Verification**
+
+```bash
+npm run lint && npm run typecheck && npm test   # clean; 74 tests passed
+npm run build                                   # / still partially prerendered
+```
+
+Against `next start`, using headless Chrome with `--virtual-time-budget`:
+- **Desktop, 1280 px, at about 15 s:** the board was mid-game, the tracker's newest row was move 16 (sol, jump ×3), and the dashed trail on the board was that same move.
+- **Mobile, 375 px:** the hero stacks above the steps, the table fits, and there is no horizontal scroll.
+- **`--force-prefers-reduced-motion`:** after 8 s the tracker still showed the still frame's moves 13–18.
+- **Redirects:** `/?next=/games/abc123` puts `next` into the auth form's hidden input, and `/games/abc123` without a cookie still 307s to `/?next=%2Fgames%2Fabc123`.
+
+The signed-in landing (step 1 "Open a new table" and the history list) was **not** checked in a browser, because that needs a Neon account.
