@@ -1,65 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api-client";
 import { legalMoves } from "@/lib/game/rules";
-import type { CellKey, Game, Move, MoveOption, Player } from "@/lib/game/types";
+import { seatOf } from "@/lib/game/seats";
+import type { CellKey, Game, Move, MoveOption, Player, PlayerProfile } from "@/lib/game/types";
 import Board from "./Board";
 import MoveHistory from "./MoveHistory";
+import PlayersCard from "./PlayersCard";
 import TurnIndicator from "./TurnIndicator";
-
-/** Which side this browser tab controls. No auth: purely a convenience guard. */
-export type Seat = "both" | Player;
 
 const POLL_MS = 2000;
 const NO_MOVES: ReadonlyMap<CellKey, MoveOption> = new Map();
-
-// Seat lives in sessionStorage (per tab), so two tabs can take opposite sides.
-const seatListeners = new Set<() => void>();
-
-function readSeat(storageKey: string): Seat {
-  try {
-    const value = window.sessionStorage.getItem(storageKey);
-    if (value === "red" || value === "blue") return value;
-  } catch {
-    // Storage blocked; fall back to hot-seat.
-  }
-  return "both";
-}
-
-function useSeat(gameId: string): [Seat, (seat: Seat) => void] {
-  const storageKey = `chinese-checkers:seat:${gameId}`;
-  const subscribe = useCallback((listener: () => void) => {
-    seatListeners.add(listener);
-    return () => {
-      seatListeners.delete(listener);
-    };
-  }, []);
-  const seat = useSyncExternalStore(
-    subscribe,
-    () => readSeat(storageKey),
-    () => "both" as const,
-  );
-  const setSeat = useCallback(
-    (next: Seat) => {
-      try {
-        window.sessionStorage.setItem(storageKey, next);
-      } catch {
-        // Ignore; the choice just won't survive a reload.
-      }
-      seatListeners.forEach((listener) => listener());
-    },
-    [storageKey],
-  );
-  return [seat, setSeat];
-}
-
-const SEATS: { value: Seat; label: string }[] = [
-  { value: "both", label: "Both (same screen)" },
-  { value: "red", label: "Red" },
-  { value: "blue", label: "Blue" },
-];
 
 const buttonClass =
   "rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-black/5 disabled:opacity-50 dark:border-white/15 dark:bg-white/10 dark:hover:bg-white/15";
@@ -67,9 +20,11 @@ const buttonClass =
 interface GameClientProps {
   initialGame: Game;
   initialMoves: Move[];
+  /** The signed-in user; their seat (if any) comes from the game, not this tab. */
+  viewer: PlayerProfile;
 }
 
-export default function GameClient({ initialGame, initialMoves }: GameClientProps) {
+export default function GameClient({ initialGame, initialMoves, viewer }: GameClientProps) {
   const router = useRouter();
   const [game, setGame] = useState(initialGame);
   const [moves, setMoves] = useState(initialMoves);
@@ -77,7 +32,8 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [seat, setSeat] = useSeat(game.id);
+  const mySeat = seatOf(game, viewer.id);
+  const ready = !!game.red && !!game.blue;
 
   const gameRef = useRef(game);
   const pendingRef = useRef(false);
@@ -87,10 +43,8 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
 
   const canMove = useCallback(
     (player: Player) =>
-      game.status === "active" &&
-      player === game.currentPlayer &&
-      (seat === "both" || seat === player),
-    [game.status, game.currentPlayer, seat],
+      game.status === "active" && ready && player === game.currentPlayer && player === mySeat,
+    [game.status, game.currentPlayer, ready, mySeat],
   );
 
   const selectable = useCallback(
@@ -162,7 +116,6 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
         const result = await api.submitMove(game.id, {
           from,
           to: key,
-          player: seat === "both" ? undefined : seat,
           expectedMoveCount: game.moveCount,
         });
         setGame(result.game);
@@ -178,6 +131,13 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
     void run(async () => {
       const { game: created } = await api.createGame();
       router.push(`/games/${created.id}`);
+    });
+  }
+
+  function handleJoin() {
+    void run(async () => {
+      const { game: joined } = await api.joinGame(game.id);
+      setGame(joined);
     });
   }
 
@@ -218,7 +178,9 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
       </div>
 
       <aside className="flex min-w-0 flex-col gap-4">
-        <TurnIndicator game={game} seat={seat} />
+        <TurnIndicator game={game} mySeat={mySeat} />
+
+        <PlayersCard game={game} mySeat={mySeat} pending={pending} onJoin={handleJoin} />
 
         {error && (
           <div
@@ -246,45 +208,16 @@ export default function GameClient({ initialGame, initialMoves }: GameClientProp
           >
             New Game
           </button>
-          <button type="button" onClick={handleRestart} disabled={pending} className={buttonClass}>
-            Restart
-          </button>
+          {/* Finished games stay as they ended, so they read right in history. */}
+          {mySeat && game.status === "active" && (
+            <button type="button" onClick={handleRestart} disabled={pending} className={buttonClass}>
+              Restart
+            </button>
+          )}
           <button type="button" onClick={handleCopyLink} className={buttonClass}>
             {copied ? "Copied!" : "Copy link"}
           </button>
         </div>
-
-        <fieldset className="rounded-xl border border-black/10 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <legend className="px-1 text-sm font-semibold">This tab plays as</legend>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {SEATS.map(({ value, label }) => (
-              <label
-                key={value}
-                className={`cursor-pointer rounded-full border px-3 py-1 text-sm transition ${
-                  seat === value
-                    ? "border-amber-600 bg-amber-600 text-white"
-                    : "border-black/15 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="seat"
-                  value={value}
-                  checked={seat === value}
-                  onChange={() => {
-                    setSeat(value);
-                    setSelected(null);
-                  }}
-                  className="sr-only"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-          <p className="mt-2 text-xs opacity-60">
-            Playing on two screens? Copy the link to the other device and pick opposite sides.
-          </p>
-        </fieldset>
 
         <MoveHistory moves={moves} />
       </aside>

@@ -1,7 +1,6 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: {
-    env: { DB_PATH: ":memory:" },
-  },
+  // Resolve the `@/*` alias from tsconfig.json, so tests can import app code.
+  resolve: { tsconfigPaths: true },
 });

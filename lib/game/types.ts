@@ -1,3 +1,5 @@
+import type { Avatar } from "../avatars";
+
 export type Player = "red" | "blue";
 
 /** Axial hex coordinate encoded as `"q,r"`. */
@@ -16,12 +18,22 @@ export interface MoveOption {
 
 export type GameStatus = "active" | "finished";
 
+/** The account holding a seat. Only public fields: this reaches the client. */
+export interface PlayerProfile {
+  id: string;
+  username: string;
+  avatar: Avatar;
+}
+
 export interface Game {
   id: string;
   board: Board;
   currentPlayer: Player;
   status: GameStatus;
   winner: Player | null;
+  /** Null while the seat is open. */
+  red: PlayerProfile | null;
+  blue: PlayerProfile | null;
   moveCount: number;
   createdAt: string;
   updatedAt: string;

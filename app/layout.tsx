@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Chinese Checkers",
-  description: "Two-player Chinese Checkers in the browser. No login required.",
+  description: "Two-player Chinese Checkers in the browser, with a history of every game you play.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

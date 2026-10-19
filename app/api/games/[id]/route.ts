@@ -1,10 +1,12 @@
 import { GameError, getGame } from "@/lib/games-repo";
 import { handle } from "@/lib/http";
+import { requireUser } from "@/lib/session";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/games/[id]">) {
   return handle(async () => {
+    await requireUser();
     const { id } = await ctx.params;
-    const game = getGame(id);
+    const game = await getGame(id);
     if (!game) throw new GameError(404, `Game ${id} not found`);
     return Response.json({ game });
   });

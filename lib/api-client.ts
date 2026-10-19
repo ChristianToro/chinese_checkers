@@ -1,4 +1,4 @@
-import type { CellKey, Game, Move, Player } from "./game/types";
+import type { CellKey, Game, Move } from "./game/types";
 
 export class ApiError extends Error {
   constructor(
@@ -22,10 +22,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+/** The mover's seat comes from the session, so the body names no player. */
 export interface SubmitMoveBody {
   from: CellKey;
   to: CellKey;
-  player?: Player;
   expectedMoveCount?: number;
 }
 
@@ -33,6 +33,7 @@ export const api = {
   createGame: () => request<{ game: Game }>("/api/games", { method: "POST" }),
   getGame: (id: string) => request<{ game: Game }>(`/api/games/${id}`),
   getMoves: (id: string) => request<{ moves: Move[] }>(`/api/games/${id}/moves`),
+  joinGame: (id: string) => request<{ game: Game }>(`/api/games/${id}/join`, { method: "POST" }),
   submitMove: (id: string, body: SubmitMoveBody) =>
     request<{ game: Game; move: Move }>(`/api/games/${id}/moves`, {
       method: "POST",
